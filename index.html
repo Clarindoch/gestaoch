@@ -311,16 +311,6 @@ var isMob   = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 var isIOS   = /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
 var isApp   = window.matchMedia('(display-mode:standalone)').matches || window.navigator.standalone;
 
-// ── Service Worker inline via Blob ───────────────────────
-if ('serviceWorker' in navigator) {
-  var swCode = "const CACHE='gestaoch-v2';\nself.addEventListener('install',e=>{self.skipWaiting();});\nself.addEventListener('activate',e=>{self.clients.claim();});\nself.addEventListener('fetch',e=>{\n  if(e.request.url.includes('script.google.com')||e.request.url.includes('googleapis.com')){\n    e.respondWith(fetch(e.request).catch(()=>new Response('Offline',{status:503})));\n    return;\n  }\n});";
-  var swBlob = new Blob([swCode], {type:'application/javascript'});
-  var swURL  = URL.createObjectURL(swBlob);
-  navigator.serviceWorker.register(swURL)
-    .then(function(r){ console.log('SW ok'); })
-    .catch(function(e){ console.warn('SW:', e.message); });
-}
-
 // ── Captura evento de instalação (Android / PC) ──────────
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
