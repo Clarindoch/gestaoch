@@ -366,34 +366,34 @@ function iniciar() {
     document.getElementById('splash').classList.add('out');
     var e = document.getElementById('err');
     e.querySelector('.err-t').textContent = '⚙️ Configure o App';
-    e.querySelector('.err-s').innerHTML = 'Abra o arquivo <b>GestãoCH.html</b> em um editor de texto<br>e substitua <b>URL_SISTEMA</b> pela URL do seu Apps Script.';
+    e.querySelector('.err-s').innerHTML =
+      'Abra o arquivo <b>GestãoCH.html</b> e substitua <b>URL_SISTEMA</b> pela URL do seu Apps Script.';
     e.querySelector('.err-btn').style.display = 'none';
     e.classList.add('on');
     return;
   }
 
   document.getElementById('sp-txt').textContent = 'Carregando sistema...';
-  var fr = document.getElementById('fr');
-  fr.src = '';
 
-  var timer = setTimeout(function() {
+  // ⛔ REMOVE uso do iframe
+  // var fr = document.getElementById('fr');
+  // fr.src = '';
+
+  // ⏱️ tempo limite
+  var timer = setTimeout(function () {
     document.getElementById('splash').classList.add('out');
     document.getElementById('err').classList.add('on');
-  }, 20000);
+  }, 10000);
 
-  fr.onload = function() {
-    clearTimeout(timer);
-    document.getElementById('splash').classList.add('out');
-    setTimeout(function() { fr.classList.add('on'); mostrarMenuFloat(); }, 350);
-  };
-  fr.onerror = function() {
+  // 🚀 abre direto (sem travar)
+  try {
+    window.location.href = URL_SISTEMA;
+  } catch (e) {
     clearTimeout(timer);
     document.getElementById('splash').classList.add('out');
     document.getElementById('err').classList.add('on');
-  };
-  fr.src = URL_SISTEMA;
+  }
 }
-
 
 // ══ AUTENTICAÇÃO ═══════════════════════════════════════════
 // Usuários ficam no localStorage — só no dispositivo
