@@ -453,28 +453,4 @@
 {UI_JS}
 </script>
 </body>
-</html>"""
-
-with open('/mnt/user-data/outputs/GestãoCH_v2.html','w',encoding='utf-8') as f:
-    f.write(HTML)
-
-size = len(HTML.encode('utf-8'))//1024
-print(f"✅ GestãoCH_v2.html criado: {{size}}KB")
-
-import re, subprocess
-scripts = re.findall(r'<script[^>]*>([\s\S]*?)</script>', HTML)
-js = '\n'.join(scripts)
-with open('/tmp/v2_check.js','w') as f: f.write(js)
-
-r = subprocess.run(['node','-e',"""
-const fs=require('fs');
-const js=fs.readFileSync('/tmp/v2_check.js','utf8');
-try{{new Function(js);console.log('✅ JS 100% VÁLIDO');}}
-catch(e){{console.log('❌',e.message);
-const l=js.split('\\n');let s='';
-for(let i=0;i<l.length;i++){{s+=l[i]+'\\n';
-try{{new Function(s);}}catch(e2){{if(e2.message===e.message){{
-console.log('Linha '+(i+1)+':',l[i].substring(0,120));break;}}}}}}}}
-"""],capture_output=True,text=True)
-print(r.stdout)
-EOF
+</html>
