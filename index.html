@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gestão CH">
+<meta name="theme-color" content="#080e1a">
+<title>Gestão CH</title>
+<style>{CSS}</style>
+</head>
+<body>
+
+<!-- TOAST & OVERLAY -->
+<div id="toast"></div>
+<div id="ov" class="show"><div class="ov-sp"></div><div class="ov-txt" id="ov-txt">Carregando...</div></div>
+<div id="sync-bar"></div>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="sp-ring"><img class="sp-logo" src="{LOGO_DATA}" alt="CH"></div>
+  <div class="sp-title">Gestão CH</div>
+  <div class="sp-sub">Cursos e Consultorias</div>
+  <div class="sp-bar-w"><div class="sp-bar"></div></div>
+  <div class="sp-ver">v2.0 · Offline First</div>
+</div>
+
+<!-- LOGIN -->
+<div id="login">
+  <img class="lg-logo" src="{LOGO_DATA}" alt="CH">
+  <div class="lg-title">Gestão CH</div>
+  <div class="lg-sub">Acesso Restrito</div>
+  <div class="lg-card">
+    <label class="lbl">Usuário</label>
+    <input class="inp mb-10" id="lg-u" type="text" placeholder="seu usuário" autocapitalize="off" autocorrect="off" autocomplete="username">
+    <label class="lbl">Senha</label>
+    <div class="inp-pw-wrap mb-10">
+      <input class="inp" id="lg-s" type="password" placeholder="sua senha" autocomplete="current-password">
+      <button class="pw-eye" id="olho" onclick="toggleOlho()">👁️</button>
+    </div>
+    <div class="err-box" id="lg-err"></div>
+    <div class="tent-txt" id="lg-tent"></div>
+    <button class="btn-pri" onclick="fazerLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- Overlay sidebar mobile -->
+  <div class="sb-overlay" id="sb-overlay" onclick="fecharSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-logo-area">
+      <img class="sb-logo-img" src="{LOGO_DATA}" alt="CH">
+      <div>
+        <div class="sb-logo-t">Gestão CH</div>
+        <div class="sb-logo-s">Sistema v2.0</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-sect">Principal</div>
+      <button class="sb-item on" id="sb-inicio" onclick="navTo('inicio')"><span class="sb-ic">🏠</span>Dashboard</button>
+      <button class="sb-item" id="sb-clientes" onclick="navTo('clientes')">
+        <span class="sb-ic">👥</span>Clientes
+        <span class="sb-badge" id="badge-cli" style="display:none"></span>
+      </button>
+
+      <div class="sb-sect">Novo</div>
+      <button class="sb-item" onclick="abrirNovoCliente(true)"><span class="sb-ic">⚡</span>Cadastro Rápido</button>
+      <button class="sb-item" id="sb-novo" onclick="abrirNovoCliente(false)"><span class="sb-ic">➕</span>Novo Cliente</button>
+
+      <div class="sb-sect">Cursos</div>
+      <button class="sb-item" id="sb-alunos" onclick="navTo('alunos')"><span class="sb-ic">🎓</span>Alunos & Cursos</button>
+
+      <div class="sb-sect">Gestão</div>
+      <button class="sb-item" id="sb-relatorio" onclick="navTo('relatorio')"><span class="sb-ic">📊</span>Relatório</button>
+
+      <div class="sb-sect">Sistema</div>
+      <button class="sb-item" id="sb-manual" onclick="navTo('manual')"><span class="sb-ic">📖</span>Manual</button>
+      <button class="sb-item" id="sb-config" onclick="navTo('config')"><span class="sb-ic">⚙️</span>Configurações</button>
+    </nav>
+    <div class="sb-user">
+      <div class="sb-user-card">
+        <div class="sb-user-av" id="sb-user-av">CL</div>
+        <div style="flex:1;min-width:0">
+          <div class="sb-user-n" id="sb-user-n">Clarindo</div>
+          <div class="sb-user-r" id="sb-user-r">Administrador</div>
+        </div>
+      </div>
+      <button class="sb-sair" onclick="abrirGerirUsr()">👥 Usuários</button>
+      <button class="sb-sair" onclick="trocarMinhaSenha()">🔑 Trocar senha</button>
+      <button class="sb-sair" onclick="fazerSair()">🚪 Sair</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <button class="tb-menu" onclick="toggleSidebar()">☰</button>
+      <div style="flex:1;min-width:0">
+        <div class="tb-title" id="tb-title">Dashboard</div>
+        <div class="tb-sub" id="tb-sub" style="font-size:9px;color:var(--t3);margin-top:1px">Gestão CH · Offline First</div>
+      </div>
+      <button class="tb-sync" id="tb-sync-btn" onclick="SYNC.sincronizar()">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="tb-sync-txt">Online</span>
+      </button>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content" id="content">
+
+      <!-- ═══ DASHBOARD ═══ -->
+      <div class="page on" id="pg-inicio">
+        <!-- Stats principais -->
+        <div class="grid4" style="margin-bottom:14px">
+          <div class="stat g"><div class="stat-ic">🏢</div><div class="stat-n" id="ds-ch">0</div><div class="stat-l">CH</div></div>
+          <div class="stat p"><div class="stat-ic">📋</div><div class="stat-n" id="ds-ctr">0</div><div class="stat-l">CTR</div></div>
+          <div class="stat g"><div class="stat-ic">✅</div><div class="stat-n" id="ds-at">0</div><div class="stat-l">Ativos</div></div>
+          <div class="stat r"><div class="stat-ic">💤</div><div class="stat-n" id="ds-ina">0</div><div class="stat-l">Inativos</div></div>
+        </div>
+        <div class="grid4" style="margin-bottom:14px">
+          <div class="stat r"><div class="stat-ic">💰</div><div class="stat-n" id="ds-gru">0</div><div class="stat-l">GRU a Pagar</div></div>
+          <div class="stat r"><div class="stat-ic">🚨</div><div class="stat-n" id="ds-urg">0</div><div class="stat-l">Urgentes</div></div>
+          <div class="stat y"><div class="stat-ic">📝</div><div class="stat-n" id="ds-inc">0</div><div class="stat-l">Incompletos</div></div>
+          <div class="stat p"><div class="stat-ic">🎓</div><div class="stat-n" id="ds-alu">0</div><div class="stat-l">Alunos</div></div>
+        </div>
+
+        <!-- Alertas -->
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-t"><span>🔔 Alertas</span></div>
+          <div id="ds-alertas"></div>
+        </div>
+
+        <!-- Calendário + Próximas aulas lado a lado no desktop -->
+        <div style="display:grid;grid-template-columns:1fr;gap:14px" id="ds-grid">
+          <div class="card">
+            <div class="card-t">
+              <span>📅 Calendário</span>
+              <div class="cal-nav">
+                <button class="cal-nav-btn" onclick="calNav(-1)">‹</button>
+                <span class="cal-mes" id="cal-titulo"></span>
+                <button class="cal-nav-btn" onclick="calNav(1)">›</button>
+              </div>
+            </div>
+            <div class="cal-grid" id="cal-grid"></div>
+            <div class="cal-leg">
+              <div class="cal-leg-item"><div class="cal-leg-dot" style="background:var(--g2)"></div>Aulas</div>
+              <div class="cal-leg-item"><div class="cal-leg-dot" style="background:var(--red)"></div>GRU vencendo</div>
+              <div class="cal-leg-item"><div class="cal-leg-dot" style="background:var(--acc)"></div>Hoje</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-t"><span>🎓 Próximas Aulas</span><button class="btn btn-g btn-sm" onclick="navTo('alunos')">Ver tudo</button></div>
+            <div id="ds-aulas"></div>
+          </div>
+        </div>
+
+        <!-- Ações rápidas -->
+        <div class="card">
+          <div class="card-t"><span>⚡ Ações Rápidas</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <button class="btn btn-g btn-full" onclick="abrirNovoCliente(true)">⚡ Cadastro Rápido</button>
+            <button class="btn btn-b btn-full" onclick="abrirNovoCliente(false)">➕ Novo Cliente</button>
+            <button class="btn btn-ghost btn-full" onclick="navTo('alunos');setTimeout(function(){{abrirNovoAluno();}},100)">🎓 Novo Aluno</button>
+            <button class="btn btn-ghost btn-full" onclick="navTo('relatorio')">📊 Relatório</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ CLIENTES ═══ -->
+      <div class="page" id="pg-clientes">
+        <div style="display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap">
+          <button class="btn btn-g" onclick="abrirNovoCliente(true)">⚡ Rápido</button>
+          <button class="btn btn-b" onclick="abrirNovoCliente(false)">➕ Completo</button>
+        </div>
+        <div class="search-wrap">
+          <span class="search-ic">🔍</span>
+          <input class="search-inp" id="cl-srch" type="search" placeholder="Buscar por nome, CPF ou código..." oninput="G.cl_pg=0;renderClientes()">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px">
+          <select class="fc" id="cl-tipo" onchange="G.cl_pg=0;renderClientes()" style="height:36px;font-size:11px">
+            <option value="">Todos tipos</option>
+            <option>CH</option><option>CTR</option>
+          </select>
+          <select class="fc" id="cl-stat" onchange="G.cl_pg=0;renderClientes()" style="height:36px;font-size:11px">
+            <option value="">Todos</option>
+            <option>Ativo</option><option>Inativo</option>
+          </select>
+          <select class="fc" id="cl-ord" onchange="renderClientes()" style="height:36px;font-size:11px">
+            <option value="nome">Nome A-Z</option>
+            <option value="cod">Código</option>
+          </select>
+        </div>
+        <div style="font-size:10px;color:var(--t3);margin-bottom:8px" id="cl-total"></div>
+        <div id="cl-lista"></div>
+        <div class="pag-bar" id="cl-pag" style="display:none">
+          <button class="pag-b" id="cl-pag-ant" onclick="pagCl(-1)">‹ Ant</button>
+          <span class="pag-i" id="cl-pag-inf">1/1</span>
+          <button class="pag-b" id="cl-pag-prx" onclick="pagCl(1)">Prx ›</button>
+        </div>
+      </div>
+
+      <!-- ═══ CLIENTE (painel) ═══ -->
+      <div class="page" id="pg-cliente">
+        <button class="btn btn-ghost btn-sm" onclick="voltarClientes()" style="margin-bottom:12px">‹ Voltar</button>
+        <div class="pcl-hero">
+          <div class="pcl-nome" id="pcl-nome">–</div>
+          <div class="pcl-meta" id="pcl-meta"></div>
+        </div>
+        <div class="tabs">
+          <button class="tab on" id="tab-dados" onclick="irTab('dados')">📋 Dados</button>
+          <button class="tab" id="tab-servicos" onclick="irTab('servicos')">🔧 Serviços</button>
+        </div>
+        <div class="tab-body">
+          <div class="tpag on" id="tp-dados"></div>
+          <div class="tpag" id="tp-servicos"></div>
+        </div>
+      </div>
+
+      <!-- ═══ ALUNOS ═══ -->
+      <div class="page" id="pg-alunos">
+        <div class="grid3" style="margin-bottom:14px">
+          <div class="stat g"><div class="stat-n" id="alu-total">0</div><div class="stat-l">Alunos</div></div>
+          <div class="stat p"><div class="stat-n" id="alu-prox">–</div><div class="stat-l">Próx. Aula</div></div>
+          <div class="stat r"><div class="stat-n" id="alu-bloq-n">0</div><div class="stat-l">Dias Bloq.</div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-t">
+            <span>🔒 Dias Bloqueados</span>
+            <button class="btn btn-r btn-sm" onclick="abrirBloquearDia()">🔒 Bloquear</button>
+          </div>
+          <div id="alu-bloqueios"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-t">
+            <span>📅 Próximas Aulas</span>
+            <button class="btn btn-g btn-sm" onclick="abrirNovoAluno()">➕ Novo Aluno</button>
+          </div>
+          <div id="alu-agenda"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-t"><span>👥 Todos os Alunos</span></div>
+          <div id="alu-lista"></div>
+        </div>
+      </div>
+
+      <!-- ═══ RELATÓRIO ═══ -->
+      <div class="page" id="pg-relatorio">
+        <div class="card">
+          <div class="card-t"><span>📊 Relatório de Clientes</span></div>
+          <div style="display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap">
+            <button class="btn btn-g btn-sm" onclick="selecionarTodosRel()">✅ Todos</button>
+            <button class="btn btn-ghost btn-sm" onclick="limparRel()">🗑 Limpar</button>
+            <span class="btn btn-ghost btn-sm" style="cursor:default" id="rl-cnt">0 selecionados</span>
+          </div>
+          <div id="rl-lista"></div>
+          <button class="btn btn-g btn-full" style="margin-top:12px" onclick="gerarRelatorio()">📄 Gerar Relatório PDF</button>
+        </div>
+      </div>
+
+      <!-- ═══ MANUAL ═══ -->
+      <div class="page" id="pg-manual">
+        <div style="background:linear-gradient(135deg,var(--bg3),var(--bg4));border:1px solid var(--b);border-radius:var(--rxl);padding:20px;margin-bottom:16px">
+          <div style="font-size:22px;font-weight:900;background:linear-gradient(135deg,var(--g1),var(--g2));-webkit-background-clip:text;-webkit-text-fill-color:transparent">Manual do Sistema</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:4px">Gestão CH v2.0 · Offline First</div>
+        </div>
+        <div class="man-sec"><div class="man-sec-t">🏠 Dashboard</div>
+          <div class="man-item"><b>Stats:</b> CH, CTR, Ativos, Inativos, GRUs a pagar, Urgentes, Incompletos, Alunos</div>
+          <div class="man-item"><b>Calendário:</b> Clique em qualquer dia para ver aulas e GRUs</div>
+          <div class="man-item"><b>Alertas:</b> Visto 13-14 dias = ⚠️ Atenção · 15+ dias = 🚨 Urgente</div>
+          <div class="man-item"><b>Ações rápidas:</b> Cadastro rápido, novo cliente, novo aluno, relatório</div>
+        </div>
+        <div class="man-sec"><div class="man-sec-t">👥 Clientes</div>
+          <div class="man-item"><b>Cadastro Rápido ⚡:</b> Só nome + telefone/CPF opcional — alerta de incompleto automático</div>
+          <div class="man-item"><b>Novo Cliente ➕:</b> Cadastro completo com todos os campos</div>
+          <div class="man-item"><b>👁️ Marcar Visto:</b> Registra a data do último contato — controla prazo</div>
+          <div class="man-item"><b>⚠️ Incompleto:</b> Badge laranja indica campos faltando — clique para completar</div>
+          <div class="man-item"><b>Status de serviços:</b> Pendente Cliente · Pendente Sistema · Pronto p/ Análise · Em Análise · Deferido · Indeferido</div>
+        </div>
+        <div class="man-sec"><div class="man-sec-t">💰 GRU</div>
+          <div class="man-item"><b>Gerar:</b> Dentro do popup do serviço → botão 💰 GRU</div>
+          <div class="man-item"><b>Vencimento:</b> Automático em 30 dias — editável</div>
+          <div class="man-item"><b>✅ Pagar:</b> Marca como paga com data · <b>↩ Desfazer:</b> Volta para A Pagar</div>
+        </div>
+        <div class="man-sec"><div class="man-sec-t">🎓 Alunos & Cursos</div>
+          <div class="man-item"><b>Modalidades:</b> Básico, Avançado 1, Avançado 2 — incompatíveis no mesmo dia</div>
+          <div class="man-item"><b>Regras:</b> Somente sáb/dom · máx 4 alunos/dia · 1 curso por dia</div>
+          <div class="man-item"><b>🔒 Bloquear dia:</b> Laudo, Feriado, Evento — nenhum aluno entra no dia</div>
+          <div class="man-item"><b>Google Agenda:</b> Ao cadastrar, escolha Sim para abrir e criar o evento</div>
+          <div class="man-item"><b>Vincular cliente:</b> Se o aluno já é cliente, vincule para cruzar os dados</div>
+        </div>
+        <div class="man-sec"><div class="man-sec-t">📊 Relatório</div>
+          <div class="man-item">Selecione clientes → 📝 para obs individual → 📄 Gerar PDF</div>
+          <div class="man-item">O arquivo HTML gerado pode ser aberto no navegador e impresso como PDF</div>
+        </div>
+        <div class="man-sec"><div class="man-sec-t">💾 Dados & Sync</div>
+          <div class="man-item"><b>Offline:</b> Todos os dados ficam no celular/PC — funciona sem internet</div>
+          <div class="man-item"><b>Sync:</b> Configure a URL do Google Apps Script em Configurações para sincronizar</div>
+          <div class="man-item"><b>Backup:</b> Configurações → Exportar Dados (arquivo JSON)</div>
+          <div class="man-item"><b>Restaurar:</b> Configurações → Importar Dados</div>
+        </div>
+      </div>
+
+      <!-- ═══ CONFIGURAÇÕES ═══ -->
+      <div class="page" id="pg-config">
+        <div class="card">
+          <div class="card-t"><span>🔄 Sync Google Sheets</span></div>
+          <div class="fg"><label class="fl">URL do Apps Script</label><input class="fc" id="cfg-gas-url" type="url" placeholder="https://script.google.com/macros/s/..."></div>
+          <div style="font-size:10px;color:var(--t3);margin-bottom:10px;line-height:1.6">Configure para sincronizar os dados com o Google Sheets quando estiver online.</div>
+          <button class="btn btn-g btn-sm" onclick="salvarConfig()">💾 Salvar</button>
+        </div>
+        <div class="card">
+          <div class="card-t"><span>💾 Backup de Dados</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <button class="btn btn-b btn-full" onclick="exportarDados()">📤 Exportar JSON</button>
+            <button class="btn btn-ghost btn-full" onclick="importarDados()">📥 Importar JSON</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-t"><span>👥 Usuários</span></div>
+          <button class="btn btn-g btn-sm" onclick="abrirGerirUsr()">Gerenciar Usuários</button>
+        </div>
+        <div class="card">
+          <div class="card-t"><span>ℹ️ Sobre</span></div>
+          <div style="font-size:12px;color:var(--t2);line-height:1.8">
+            <b style="color:var(--t)">Gestão CH v2.0</b> · Sistema Offline First<br>
+            Desenvolvido para: <b style="color:var(--acc)">Clarindo · CH Cursos e Consultorias</b><br>
+            cursosconsultoriach@gmail.com
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ═══ MODAIS ═══ -->
+
+<!-- Modal Calendário -->
+<div class="mo-bg" id="mo-cal">
+  <div class="mo-box">
+    <div class="mo-t"><span>📅 Eventos do Dia</span><button class="mo-x" onclick="fecharModal('mo-cal')">✕</button></div>
+    <div id="mo-cal-corpo"></div>
+  </div>
+</div>
+
+<!-- Modal Novo/Editar Cliente -->
+<div class="mo-bg" id="mo-cli">
+  <div class="mo-box">
+    <div class="mo-t"><span id="mo-cli-t">➕ Cliente</span><button class="mo-x" onclick="fecharModal('mo-cli')">✕</button></div>
+    <div id="mo-cli-corpo"></div>
+    <div class="mo-ac">
+      <button class="btn btn-ghost btn-sm" onclick="fecharModal('mo-cli')">Cancelar</button>
+      <button class="btn btn-g btn-sm" onclick="salvarCliente()"><span class="btn-lbl">💾 Salvar</span><div class="spin-ic"></div></button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Novo Serviço -->
+<div class="mo-bg" id="mo-nsrv">
+  <div class="mo-box">
+    <div class="mo-t"><span>➕ Novo Serviço</span><button class="mo-x" onclick="fecharModal('mo-nsrv')">✕</button></div>
+    <div id="mo-nsrv-corpo"></div>
+    <div class="mo-ac">
+      <button class="btn btn-ghost btn-sm" onclick="fecharModal('mo-nsrv')">Cancelar</button>
+      <button class="btn btn-g btn-sm" onclick="salvarNovoServico()">💾 Criar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Serviço -->
+<div class="mo-bg" id="mo-srv">
+  <div class="mo-box">
+    <div class="mo-t"><span id="mo-srv-t">🔧 Serviço</span><button class="mo-x" onclick="fecharModal('mo-srv')">✕</button></div>
+    <div id="mo-srv-corpo"></div>
+    <div class="mo-ac" id="mo-srv-ac"></div>
+  </div>
+</div>
+
+<!-- Modal Novo Aluno -->
+<div class="mo-bg" id="mo-nalu">
+  <div class="mo-box">
+    <div class="mo-t"><span>🎓 Novo Aluno</span><button class="mo-x" onclick="fecharModal('mo-nalu')">✕</button></div>
+    <div id="mo-nalu-corpo"></div>
+    <div class="mo-ac">
+      <button class="btn btn-ghost btn-sm" onclick="fecharModal('mo-nalu')">Cancelar</button>
+      <button class="btn btn-g btn-sm" onclick="salvarNovoAluno()">💾 Cadastrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar Aluno -->
+<div class="mo-bg" id="mo-ealu">
+  <div class="mo-box">
+    <div class="mo-t"><span>✏️ Editar Aluno</span><button class="mo-x" onclick="fecharModal('mo-ealu')">✕</button></div>
+    <div id="mo-ealu-corpo"></div>
+    <div class="mo-ac" id="mo-ealu-ac"></div>
+  </div>
+</div>
+
+<!-- Modal Bloquear Dia -->
+<div class="mo-bg" id="mo-bloq">
+  <div class="mo-box">
+    <div class="mo-t"><span>🔒 Bloquear Dia</span><button class="mo-x" onclick="fecharModal('mo-bloq')">✕</button></div>
+    <div id="mo-bloq-corpo"></div>
+    <div class="mo-ac">
+      <button class="btn btn-ghost btn-sm" onclick="fecharModal('mo-bloq')">Cancelar</button>
+      <button class="btn btn-r btn-sm" onclick="salvarBloqueio()">🔒 Bloquear</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Excluir -->
+<div class="mo-bg" id="mo-del">
+  <div class="mo-box">
+    <div class="mo-t"><span>🗑️ Confirmar Exclusão</span><button class="mo-x" onclick="fecharModal('mo-del')">✕</button></div>
+    <div class="alert alert-r" style="margin-bottom:14px"><span class="alert-ic">⚠️</span><div id="mo-del-txt">Confirmar exclusão?</div></div>
+    <div class="mo-ac">
+      <button class="btn btn-ghost btn-sm" onclick="fecharModal('mo-del')">Cancelar</button>
+      <button class="btn btn-r btn-sm" onclick="executarExcluir()">Sim, excluir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Obs Relatório -->
+<div class="mo-bg" id="mo-obs-rel">
+  <div class="mo-box">
+    <div class="mo-t"><span id="mo-obs-rel-t">📝 Observação</span><button class="mo-x" onclick="fecharModal('mo-obs-rel')">✕</button></div>
+    <div class="fg"><label class="fl">Observação para o relatório</label><textarea class="fc" id="mo-obs-rel-inp" rows="4" placeholder="Anotação sobre este cliente..."></textarea></div>
+    <div class="mo-ac" id="mo-obs-rel-ac"></div>
+  </div>
+</div>
+
+<!-- Modal Usuários -->
+<div class="mo-bg" id="mo-usr">
+  <div class="mo-box">
+    <div class="mo-t"><span>👥 Usuários</span><button class="mo-x" onclick="fecharModal('mo-usr')">✕</button></div>
+    <div id="mo-usr-corpo"></div>
+    <div class="mo-ac" id="mo-usr-ac"></div>
+  </div>
+</div>
+
+<script>
+{DATA_JS}
+{UI_JS}
+</script>
+</body>
+</html>"""
+
+with open('/mnt/user-data/outputs/GestãoCH_v2.html','w',encoding='utf-8') as f:
+    f.write(HTML)
+
+size = len(HTML.encode('utf-8'))//1024
+print(f"✅ GestãoCH_v2.html criado: {{size}}KB")
+
+import re, subprocess
+scripts = re.findall(r'<script[^>]*>([\s\S]*?)</script>', HTML)
+js = '\n'.join(scripts)
+with open('/tmp/v2_check.js','w') as f: f.write(js)
+
+r = subprocess.run(['node','-e',"""
+const fs=require('fs');
+const js=fs.readFileSync('/tmp/v2_check.js','utf8');
+try{{new Function(js);console.log('✅ JS 100% VÁLIDO');}}
+catch(e){{console.log('❌',e.message);
+const l=js.split('\\n');let s='';
+for(let i=0;i<l.length;i++){{s+=l[i]+'\\n';
+try{{new Function(s);}}catch(e2){{if(e2.message===e.message){{
+console.log('Linha '+(i+1)+':',l[i].substring(0,120));break;}}}}}}}}
+"""],capture_output=True,text=True)
+print(r.stdout)
+EOF
