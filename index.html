@@ -3049,6 +3049,45 @@ function _vistoRapido(id,btn){
   if(btn){btn.textContent='✅';btn.disabled=true;}
   UI.toast('Visto: '+cl.nome.split(' ')[0],'ok');
 }
+function renderProcessos(){
+  var el = document.getElementById('pg-processos');
+
+  if(!el) return;
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-t">📋 Lista de Processos</div>
+
+      <div class="empty">
+        <div class="empty-ic">📂</div>
+        <div class="empty-t">Página em construção</div>
+        <div class="empty-s">
+          Os processos aparecerão aqui futuramente.
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderRegistro(){
+  var el = document.getElementById('pg-registro');
+
+  if(!el) return;
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-t">📝 Registro de Cadastro</div>
+
+      <div class="empty">
+        <div class="empty-ic">🧾</div>
+        <div class="empty-t">Página em construção</div>
+        <div class="empty-s">
+          O registro aparecerá aqui futuramente.
+        </div>
+      </div>
+    </div>
+  `;
+}  
 
 </script>
 </body>
