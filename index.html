@@ -553,6 +553,8 @@ select.fc option{background:#080F1A;color:var(--t1)}
       </div>
 
       <!-- NOTAS & AVISOS -->
+
+      <div id="dash-cronograma" style="display:none;background:#112030;border:1px solid rgba(74,123,196,.14);border-radius:16px;padding:14px;margin-bottom:12px"></div>
       <div style="background:#112030;border:1px solid rgba(90,158,110,.22);border-radius:16px;padding:15px;margin-bottom:12px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px">
           <div style="font-size:13px;font-weight:800;color:#E8F4FF;display:flex;align-items:center;gap:8px">
@@ -3025,21 +3027,35 @@ function gerarMalaDireta(docTipo, cl) {
 
   APP.loading(true, 'Gerando ' + nomeDoc + '...');
 
-  var params = [
+      // Endereço completo (sem duplicar cidade)
+  var _end = (cl.endereco || '').trim();
+  var _params = [
     'action=malaDireta',
-    'docTipo='    + encodeURIComponent(docTipo),
-    'pastaId='    + encodeURIComponent(pastaId),
-    'nomeDoc='    + encodeURIComponent(nomeDoc),
-    'nome='       + encodeURIComponent(cl.nome       || ''),
-    'cpf='        + encodeURIComponent(cl.cpf        || ''),
-    'rg='         + encodeURIComponent(cl.rg         || ''),
-    'orgao='      + encodeURIComponent(cl.orgao      || 'SSP/BA'),
-    'nascimento=' + encodeURIComponent(cvData(cl.nascimento) || ''),
-    'cidade='     + encodeURIComponent(cl.cidade     || ''),
-    'endereco='   + encodeURIComponent((cl.endereco||'') + (cl.cidade?', '+cl.cidade:'')),
-    'nome_prop='  + encodeURIComponent(cl.nome_prop  || ''),
-    'cpf_prop='   + encodeURIComponent(cl.cpf_prop   || '')
+    'docTipo='          + encodeURIComponent(docTipo),
+    'pastaId='          + encodeURIComponent(pastaId),
+    'nomeDoc='          + encodeURIComponent(nomeDoc),
+    // Dados pessoais
+    'nome='             + encodeURIComponent(cl.nome         || ''),
+    'cpf='              + encodeURIComponent(cl.cpf          || ''),
+    'rg='               + encodeURIComponent(cl.rg           || ''),
+    'orgao='            + encodeURIComponent(cl.orgao        || 'SSP/BA'),
+    'nascimento='       + encodeURIComponent(cl.nascimento   || ''),
+    'naturalidade='     + encodeURIComponent(cl.naturalidade || ''),
+    'profissao='        + encodeURIComponent(cl.profissao    || ''),
+    'estado_civil='     + encodeURIComponent(cl.estado_civil || ''),
+    // Endereço
+    'endereco='         + encodeURIComponent(_end),
+    'cidade='           + encodeURIComponent(cl.cidade       || ''),
+    'cep='              + encodeURIComponent(cl.cep          || ''),
+    // Proprietário (Declaração de Residência)
+    'nome_prop='        + encodeURIComponent(cl.nome_prop    || ''),
+    'cpf_prop='         + encodeURIComponent(cl.cpf_prop     || ''),
+    'rg_prop='          + encodeURIComponent(cl.rg_prop      || ''),
+    'orgao_prop='       + encodeURIComponent(cl.orgao_prop   || ''),
+    // Protocolo
+    'protocolo='        + encodeURIComponent(cl.protocolo    || '')
   ];
+  var params = _params;
 
   fetch(SYNC.URL + '?' + params.join('&'), {cache: 'no-store'})
   .then(function(r) { return r.json(); })
@@ -4316,21 +4332,25 @@ function _declGerarSelecionadas() {
       };
       var params = [
         'action=malaDireta',
-        'docTipo='    + encodeURIComponent(d.id),
-        'pastaId='    + encodeURIComponent(cl.pasta_id || ''),
-        'nomeDoc='    + encodeURIComponent(NOMES[d.id] || d.nm),
-        'nome='       + encodeURIComponent(cl.nome || ''),
-        'cpf='        + encodeURIComponent(cl.cpf  || ''),
-        'rg='         + encodeURIComponent(cl.rg   || ''),
-        'orgao='      + encodeURIComponent(cl.orgao || 'SSP/BA'),
-        'nascimento=' + encodeURIComponent(cl.nascimento || ''),
-        'cidade='     + encodeURIComponent(cl.cidade || ''),
-        'endereco='   + encodeURIComponent((cl.endereco||'')+(cl.cidade?', '+cl.cidade:'')),
-        'naturalidade='+ encodeURIComponent(cl.naturalidade||''),
-        'profissao='  + encodeURIComponent(cl.profissao||''),
-        'estado_civil='+ encodeURIComponent(cl.estado_civil||''),
-        'nome_prop='  + encodeURIComponent(cl.nome_prop || ''),
-        'cpf_prop='   + encodeURIComponent(cl.cpf_prop  || '')
+        'docTipo='          + encodeURIComponent(d.id),
+        'pastaId='          + encodeURIComponent(cl.pasta_id    || ''),
+        'nomeDoc='          + encodeURIComponent(NOMES[d.id]    || d.nm),
+        'nome='             + encodeURIComponent(cl.nome         || ''),
+        'cpf='              + encodeURIComponent(cl.cpf          || ''),
+        'rg='               + encodeURIComponent(cl.rg           || ''),
+        'orgao='            + encodeURIComponent(cl.orgao        || 'SSP/BA'),
+        'nascimento='       + encodeURIComponent(cl.nascimento   || ''),
+        'naturalidade='     + encodeURIComponent(cl.naturalidade || ''),
+        'profissao='        + encodeURIComponent(cl.profissao    || ''),
+        'estado_civil='     + encodeURIComponent(cl.estado_civil || ''),
+        'endereco='         + encodeURIComponent(cl.endereco     || ''),
+        'cidade='           + encodeURIComponent(cl.cidade       || ''),
+        'cep='              + encodeURIComponent(cl.cep          || ''),
+        'nome_prop='        + encodeURIComponent(cl.nome_prop    || ''),
+        'cpf_prop='         + encodeURIComponent(cl.cpf_prop     || ''),
+        'rg_prop='          + encodeURIComponent(cl.rg_prop      || ''),
+        'orgao_prop='       + encodeURIComponent(cl.orgao_prop   || ''),
+        'protocolo='        + encodeURIComponent(cl.protocolo    || '')
       ];
       fetch(SYNC.URL + '?' + params.join('&'), {cache:'no-store'})
       .then(function(r){ return r.json(); })
@@ -4506,6 +4526,239 @@ function rlFiltro(filtro) {
     }
   });
   renderRel();
+}
+
+
+// ════════════════════════════════════════════════════════════
+//  DECLARAÇÕES — versão final com seleção múltipla
+// ════════════════════════════════════════════════════════════
+var _declSelIds = {};
+
+paneDecl = function() {
+  var el = APP.$('pane-decl'); if (el._isFake) return;
+  var cl = STATE.clienteId ? CL.get(STATE.clienteId) : null;
+  var temCli = !!(cl && cl.nome);
+
+  // Montar HTML
+  var div = document.createElement('div');
+
+  // Banner cliente
+  var banner = document.createElement('div');
+  if (temCli) {
+    banner.style.cssText = 'background:rgba(90,158,110,.08);border:1px solid rgba(90,158,110,.22);border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:9px';
+    banner.innerHTML = '<span style="font-size:18px">👤</span><div style="flex:1"><div style="font-size:13px;font-weight:800;color:#E8F4FF">'+E(cl.nome)+'</div><div style="font-size:11px;color:#5A9E6E">Mala direta ativa</div></div>';
+  } else {
+    banner.style.cssText = 'background:rgba(224,160,48,.07);border:1px solid rgba(224,160,48,.22);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#E0A030';
+    banner.textContent = '⚠️ Abra um cliente para usar a mala direta automática';
+  }
+  div.appendChild(banner);
+
+  // Barra de ações
+  var barra = document.createElement('div');
+  barra.style.cssText = 'display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap';
+
+  var btnTodas = document.createElement('button');
+  btnTodas.style.cssText = 'height:34px;padding:0 12px;background:rgba(74,123,196,.1);border:1px solid rgba(74,123,196,.25);border-radius:7px;color:#4A7BC4;font-size:12px;font-weight:700;cursor:pointer';
+  btnTodas.textContent = '☑️ Selecionar Todas';
+  btnTodas.onclick = function(){ DECLS.forEach(function(d){ _declSelIds[d.id]=true; }); paneDecl(); };
+
+  var btnNenhuma = document.createElement('button');
+  btnNenhuma.style.cssText = 'height:34px;padding:0 12px;background:rgba(74,123,196,.07);border:1px solid rgba(74,123,196,.18);border-radius:7px;color:#5C8AA8;font-size:12px;font-weight:700;cursor:pointer';
+  btnNenhuma.textContent = '⬜ Limpar';
+  btnNenhuma.onclick = function(){ _declSelIds={}; paneDecl(); };
+
+  var btnGerar = document.createElement('button');
+  btnGerar.style.cssText = 'height:34px;padding:0 14px;background:linear-gradient(135deg,#2A5038,#1A3050);border:none;border-radius:7px;color:#72BA86;font-size:12px;font-weight:800;cursor:pointer;margin-left:auto';
+  btnGerar.innerHTML = '🤖 Gerar Selecionadas';
+  btnGerar.onclick = _declGerarSelecionadas;
+
+  barra.appendChild(btnTodas);
+  barra.appendChild(btnNenhuma);
+  barra.appendChild(btnGerar);
+  div.appendChild(barra);
+
+  // Grid de cards
+  var grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px';
+
+  DECLS.forEach(function(d) {
+    var sel = !!_declSelIds[d.id];
+
+    var card = document.createElement('div');
+    card.style.cssText = 'position:relative;background:#112030;border:2px solid '
+      + (sel?'#5A9E6E':'rgba(74,123,196,.15)')
+      + ';border-radius:10px;padding:14px 12px;cursor:pointer;transition:.15s;'
+      + 'display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px';
+
+    // Toggle ao clicar no card
+    card.onclick = function(e){
+      if (e.target.tagName === 'BUTTON') return;
+      _declSelIds[d.id] = !_declSelIds[d.id];
+      paneDecl();
+    };
+
+    // Checkbox canto direito
+    var chk = document.createElement('div');
+    chk.style.cssText = 'position:absolute;top:8px;right:8px;width:20px;height:20px;'
+      + 'border-radius:6px;border:2px solid '+(sel?'#5A9E6E':'rgba(74,123,196,.3)')
+      + ';background:'+(sel?'#5A9E6E':'transparent')
+      + ';display:flex;align-items:center;justify-content:center;'
+      + 'font-size:12px;font-weight:900;color:#fff';
+    chk.textContent = sel ? '✓' : '';
+    card.appendChild(chk);
+
+    // Ícone + nome
+    var ic = document.createElement('span');
+    ic.style.cssText = 'font-size:24px';
+    ic.textContent = d.ic;
+    card.appendChild(ic);
+
+    var nm = document.createElement('div');
+    nm.style.cssText = 'font-size:12px;font-weight:700;color:#E8F4FF;line-height:1.3';
+    nm.textContent = d.nm;
+    card.appendChild(nm);
+
+    // Botão Abrir individual
+    var btnAbrir = document.createElement('button');
+    btnAbrir.style.cssText = 'height:28px;padding:0 12px;background:rgba(74,123,196,.12);'
+      + 'border:1px solid rgba(74,123,196,.25);border-radius:6px;color:#4A7BC4;'
+      + 'font-size:11px;font-weight:700;cursor:pointer';
+    btnAbrir.textContent = 'Abrir →';
+    var _id = d.id;
+    btnAbrir.onclick = function(e){ e.stopPropagation(); abrirDecl(_id); };
+    card.appendChild(btnAbrir);
+
+    grid.appendChild(card);
+  });
+
+  div.appendChild(grid);
+  el.innerHTML = '';
+  el.appendChild(div);
+};
+
+// ════════════════════════════════════════════════════════════
+//  CRONOGRAMA TERÇA/QUINTA — distribuição automática
+// ════════════════════════════════════════════════════════════
+
+function renderCronograma() {
+  var el = G('dash-cronograma'); if (!el) return;
+
+  var clientes = CL.getAll().filter(function(c){
+    return c.nome && c.status !== 'Inativo';
+  });
+
+  if (!clientes.length) {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = 'block';
+
+  // Separar CH e CTR
+  var ch  = clientes.filter(function(c){ return (c.tipo||'CH') === 'CH'; });
+  var ctr = clientes.filter(function(c){ return c.tipo === 'CTR'; });
+
+  // Distribuir em blocos Ter/Qui dentro de 14 dias
+  // Próximas 4 datas de trabalho (terça=2, quinta=4)
+  var diasTrabalho = [];
+  var d = new Date(); d.setHours(0,0,0,0);
+  while (diasTrabalho.length < 4) {
+    d = new Date(d.getTime() + 86400000);
+    if (d.getDay() === 2 || d.getDay() === 4) { // 2=Ter, 4=Qui
+      diasTrabalho.push(new Date(d));
+    }
+  }
+
+  // Distribuir todos os clientes pelos 4 dias de trabalho
+  function distribuir(lista) {
+    var blocos = [[],[],[],[]];
+    lista.forEach(function(c, i){ blocos[i % 4].push(c); });
+    return blocos;
+  }
+
+  var blocoCH  = distribuir(ch);
+  var blocoCTR = distribuir(ctr);
+
+  var DIAS_NOME = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  var MESES_ABR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  // Descobrir em qual bloco estamos hoje
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  var blocoAtual = 0;
+  diasTrabalho.forEach(function(dt, i){
+    if (dt <= hoje) blocoAtual = i;
+  });
+
+  var h = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+    + '<div style="font-size:13px;font-weight:800;color:#E8F4FF">📅 Cronograma Ter/Qui</div>'
+    + '<div style="font-size:11px;color:#5C8AA8">' + clientes.length + ' clientes distribuídos</div>'
+    + '</div>';
+
+  // Cards dos dias de trabalho
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+
+  diasTrabalho.forEach(function(dt, i) {
+    var isHoje = dt.getTime() === hoje.getTime();
+    var isFuturo = dt > hoje;
+    var nDia = DIAS_NOME[dt.getDay()];
+    var datStr = dt.getDate() + ' ' + MESES_ABR[dt.getMonth()];
+
+    var clisCH  = blocoCH[i]  || [];
+    var clisCTR = blocoCTR[i] || [];
+    var total   = clisCH.length + clisCTR.length;
+
+    h += '<div style="background:'+(isHoje?'rgba(90,158,110,.1)':'#0C1A28')
+      + ';border:1px solid '+(isHoje?'rgba(90,158,110,.4)':'rgba(74,123,196,.14)')
+      + ';border-radius:10px;padding:11px;'+(isFuturo&&!isHoje?'opacity:.7':'')+'">';
+
+    // Header do dia
+    h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+      + '<div>'
+      + '<span style="font-size:14px;font-weight:900;color:'+(isHoje?'#5A9E6E':'#E8F4FF')+'">'+nDia+'</span>'
+      + '<span style="font-size:11px;color:#5C8AA8;margin-left:6px">'+datStr+'</span>'
+      + (isHoje?'<span style="margin-left:6px;font-size:10px;background:#5A9E6E;color:#fff;padding:1px 6px;border-radius:99px;font-weight:700">HOJE</span>':'')
+      + '</div>'
+      + '<span style="font-size:12px;font-weight:800;color:'+(isHoje?'#5A9E6E':'#9AB8D4')+'">'+total+'</span>'
+      + '</div>';
+
+    // CH
+    if (clisCH.length) {
+      h += '<div style="font-size:9px;font-weight:800;color:#4A7BC4;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">🏢 CH ('+clisCH.length+')</div>';
+      clisCH.slice(0,4).forEach(function(c){
+        var al = calcAlerta(c);
+        var dot = al?(al.tipo==='urg'?'#E05454':al.tipo==='att'?'#E0A030':'#4A7BC4'):'';
+        h += '<div onclick="abrirCliente(\''+c.id+'\')" style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer">'
+          + '<div style="font-size:11px;color:#9AB8D4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'
+          + E((c.nome||'').split(' ').slice(0,2).join(' '))+'</div>'
+          + (dot?'<div style="width:6px;height:6px;border-radius:50%;background:'+dot+';flex-shrink:0"></div>':'')
+          + '</div>';
+      });
+      if (clisCH.length > 4) h += '<div style="font-size:10px;color:#3A5E7A;padding-top:2px">+' + (clisCH.length-4) + ' mais</div>';
+    }
+
+    // CTR
+    if (clisCTR.length) {
+      h += '<div style="font-size:9px;font-weight:800;color:#5A9E6E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;'+(clisCH.length?'margin-top:8px':'')+'"">🏆 CTR ('+clisCTR.length+')</div>';
+      clisCTR.slice(0,4).forEach(function(c){
+        var al = calcAlerta(c);
+        var dot = al?(al.tipo==='urg'?'#E05454':al.tipo==='att'?'#E0A030':'#4A7BC4'):'';
+        h += '<div onclick="abrirCliente(\''+c.id+'\')" style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer">'
+          + '<div style="font-size:11px;color:#9AB8D4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'
+          + E((c.nome||'').split(' ').slice(0,2).join(' '))+'</div>'
+          + (dot?'<div style="width:6px;height:6px;border-radius:50%;background:'+dot+';flex-shrink:0"></div>':'')
+          + '</div>';
+      });
+      if (clisCTR.length > 4) h += '<div style="font-size:10px;color:#3A5E7A;padding-top:2px">+' + (clisCTR.length-4) + ' mais</div>';
+    }
+
+    if (!total) {
+      h += '<div style="font-size:11px;color:#3A5E7A;text-align:center;padding:8px 0">Sem clientes</div>';
+    }
+
+    h += '</div>';
+  });
+
+  h += '</div>';
+  el.innerHTML = h;
 }
 
 </script>
