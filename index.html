@@ -747,6 +747,7 @@ select.fc option{background:#080F1A;color:var(--t1)}
 <script>
 
 
+
 // ═══════════════════════════════════════════════════════════════
 // GESTÃO CH v3 — CORE DATA LAYER
 // Offline-first · LocalStorage · Google Sheets Sync
@@ -4417,149 +4418,134 @@ var _declSelIds = {};
 
 function renderCronograma() {
   var el = G('dash-cronograma'); if (!el) return;
-
-  var clientes = CL.getAll().filter(function(c){
-    return c.nome && c.status !== 'Inativo';
-  });
-
-  if (!clientes.length) { el.style.display='none'; return; }
+  var todos = CL.getAll().filter(function(c){ return c.nome && c.status!=='Inativo'; });
+  if (!todos.length) { el.style.display='none'; return; }
   el.style.display = 'block';
 
   // Ordenar por nome
-  clientes.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
+  todos.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
 
-  // Distribuir em 3 grupos fixos: Terça(2), Quarta(3), Quinta(4)
-  var grupos = { 2:[], 3:[], 4:[] }; // dia da semana
-  clientes.forEach(function(c, i) {
-    var slot = i % 3; // 0=Terça, 1=Quarta, 2=Quinta
-    var diaSemana = [2, 3, 4][slot];
-    grupos[diaSemana].push(c);
+  // Distribuir em 3 grupos fixos: Ter(2) Qua(3) Qui(4)
+  var G2=[],G3=[],G4=[];
+  todos.forEach(function(c,i){
+    if(i%3===0) G2.push(c);
+    else if(i%3===1) G3.push(c);
+    else G4.push(c);
   });
 
-  // Próximo dia de trabalho de cada tipo
-  function proximodia(diaSemana) {
-    var d = new Date(); d.setHours(0,0,0,0);
-    for (var i = 0; i <= 7; i++) {
-      var t = new Date(d.getTime() + i*86400000);
-      if (t.getDay() === diaSemana) return t;
+  function proxDia(dw){
+    var d=new Date(); d.setHours(0,0,0,0);
+    for(var i=0;i<=7;i++){
+      var t=new Date(d.getTime()+i*86400000);
+      if(t.getDay()===dw) return t;
     }
     return d;
   }
 
-  var hoje = new Date(); hoje.setHours(0,0,0,0);
-  var DIAS_NOME = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-  var MESES_ABR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-
-  var DIAS_CONFIG = [
-    { diaSemana:2, nome:'Terça-feira',  cor:'#4A7BC4', corBg:'rgba(74,123,196,.08)'  },
-    { diaSemana:3, nome:'Quarta-feira', cor:'#A78BFA', corBg:'rgba(167,139,250,.08)' },
-    { diaSemana:4, nome:'Quinta-feira', cor:'#5A9E6E', corBg:'rgba(90,158,110,.08)'  }
+  var hoje=new Date(); hoje.setHours(0,0,0,0);
+  var MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var CFG=[
+    {dw:2,nm:'Ter',cor:'#4A7BC4',lista:G2},
+    {dw:3,nm:'Qua',cor:'#A78BFA',lista:G3},
+    {dw:4,nm:'Qui',cor:'#5A9E6E',lista:G4}
   ];
 
-  // Total e quantitativo
-  var total = clientes.length;
-  var porDia = Math.ceil(total / 3);
+  // Estado de expansão
+  if (!window._cronoExpand) window._cronoExpand = {};
 
-  var h = '';
+  var h='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+    +'<div style="font-size:12px;font-weight:800;color:#E8F4FF">📅 Agenda Ter · Qua · Qui</div>'
+    +'<div style="font-size:10px;color:#5C8AA8">'+todos.length+' clientes · ~'+Math.ceil(todos.length/3)+'/dia</div>'
+    +'</div>';
 
-  // Header geral
-  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
-    + '<div style="font-size:13px;font-weight:800;color:#E8F4FF">📅 Agenda Ter · Qua · Qui</div>'
-    + '<div style="font-size:11px;color:#5C8AA8">'
-    + total + ' clientes · ~' + porDia + '/dia'
-    + '</div></div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">';
 
-  // Legenda de alertas
-  h += '<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap">'
-    + '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#5C8AA8"><div style="width:8px;height:8px;border-radius:50%;background:#4EAA70"></div>Ok (0-12d)</div>'
-    + '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#5C8AA8"><div style="width:8px;height:8px;border-radius:50%;background:#E0A030"></div>Atenção (13-14d)</div>'
-    + '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#5C8AA8"><div style="width:8px;height:8px;border-radius:50%;background:#E05454"></div>Urgente (15d+)</div>'
-    + '</div>';
+  CFG.forEach(function(cfg){
+    var dt=proxDia(cfg.dw);
+    var isHoje=dt.getTime()===hoje.getTime();
+    var datStr=dt.getDate()+' '+MESES[dt.getMonth()];
+    var lista=cfg.lista;
+    var expanded=!!window._cronoExpand[cfg.dw];
 
-  // Cards dos 3 dias
-  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
-
-  DIAS_CONFIG.forEach(function(cfg) {
-    var lista = grupos[cfg.diaSemana] || [];
-    var proxDt = proximodia(cfg.diaSemana);
-    var isHoje = proxDt.getTime() === hoje.getTime();
-    var datStr = proxDt.getDate() + ' ' + MESES_ABR[proxDt.getMonth()];
-
-    // Contar alertas do grupo
-    var nUrg=0, nAtt=0, nOk=0;
+    // Contar alertas
+    var nUrg=0,nAtt=0,nNew=0,nOk=0;
     lista.forEach(function(c){
-      var al = calcAlerta(c);
-      if (!al) nOk++;
-      else if (al.tipo==='urg') nUrg++;
-      else if (al.tipo==='att') nAtt++;
-      else nOk++;
+      var al=calcAlerta(c);
+      if(!al) nOk++;
+      else if(al.tipo==='urg') nUrg++;
+      else if(al.tipo==='att') nAtt++;
+      else nNew++;
+    });
+    var temAlerta=nUrg+nAtt+nNew>0;
+
+    h+='<div style="background:'+(isHoje?'rgba(74,123,196,.1)':'#0B1622')
+      +';border:1px solid '+(isHoje?cfg.cor:'rgba(74,123,196,.12)')
+      +';border-radius:10px;padding:9px;overflow:hidden">';
+
+    // Header compacto
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
+      +'<div>'
+      +'<span style="font-size:13px;font-weight:900;color:'+cfg.cor+'">'+cfg.nm+'</span>'
+      +'<span style="font-size:10px;color:#5C8AA8;margin-left:5px">'+datStr+'</span>'
+      +(isHoje?'<span style="margin-left:4px;font-size:9px;background:'+cfg.cor+';color:#fff;padding:1px 5px;border-radius:99px;font-weight:700">HOJE</span>':'')
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:4px">'
+      // Mini badges de alerta
+      +(nUrg?'<span style="font-size:10px;font-weight:800;color:#E05454">'+nUrg+'🔴</span>':'')
+      +(nAtt?'<span style="font-size:10px;font-weight:800;color:#E0A030">'+nAtt+'🟡</span>':'')
+      +'<span style="font-size:11px;font-weight:800;color:'+cfg.cor+'">'+lista.length+'</span>'
+      // Seta expandir
+      +'<button onclick="(function(){window._cronoExpand=window._cronoExpand||{};window._cronoExpand['+cfg.dw+']=!window._cronoExpand['+cfg.dw+'];renderCronograma();})()" '
+      +'style="width:20px;height:20px;background:rgba(74,123,196,.15);border:none;border-radius:4px;color:#5C8AA8;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center">'
+      +(expanded?'▲':'▼')+'</button>'
+      +'</div></div>';
+
+    // Lista compacta — só urgentes/atenção se fechado
+    var mostrar = expanded ? lista : lista.filter(function(c){
+      var al=calcAlerta(c);
+      return al && (al.tipo==='urg'||al.tipo==='att');
     });
 
-    h += '<div style="background:'+(isHoje?cfg.corBg:'#0C1A28')+';border:1px solid '
-      + (isHoje?cfg.cor:'rgba(74,123,196,.14)')
-      + ';border-radius:12px;padding:11px;overflow:hidden">';
+    if(!expanded && !mostrar.length){
+      h+='<div style="font-size:10px;color:#4EAA70;text-align:center;padding:3px 0">✅ Todos em dia</div>';
+    } else {
+      // Separar CH e CTR
+      var ch =mostrar.filter(function(c){return (c.tipo||'CH')==='CH';});
+      var ctr=mostrar.filter(function(c){return c.tipo==='CTR';});
 
-    // Header do card
-    h += '<div style="margin-bottom:8px">'
-      + '<div style="font-size:13px;font-weight:900;color:'+cfg.cor+'">'+cfg.nome.split('-')[0].trim()+'</div>'
-      + '<div style="font-size:10px;color:#5C8AA8">'+datStr+(isHoje?' · <b style="color:'+cfg.cor+'">HOJE</b>':'')+'</div>'
-      + '</div>';
+      function linha(c){
+        var al=calcAlerta(c);
+        var dot=!al?'#4EAA70':al.tipo==='urg'?'#E05454':al.tipo==='att'?'#E0A030':'#4A7BC4';
+        var dias=al&&al.dias<9999?al.dias+'d':al?'!':'';
+        var nome=(c.nome||'').split(' ');
+        var nomeExib=nome[0]+(nome[1]?' '+nome[1][0]+'.':'');
+        return '<div onclick="abrirCliente(\''+c.id+'\')" '
+          +'style="display:flex;align-items:center;gap:4px;padding:2px 0;cursor:pointer">'
+          +'<div style="width:5px;height:5px;border-radius:50%;background:'+dot+';flex-shrink:0"></div>'
+          +'<div style="flex:1;font-size:10px;color:#C8E0F4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+E(nomeExib)+'</div>'
+          +(dias?'<div style="font-size:9px;font-weight:800;color:'+dot+'">'+dias+'</div>':'')
+          +'</div>';
+      }
 
-    // Mini contadores
-    h += '<div style="display:flex;gap:4px;margin-bottom:8px">'
-      + '<div style="flex:1;background:rgba(224,84,84,.12);border-radius:6px;padding:4px;text-align:center">'
-      + '<div style="font-size:14px;font-weight:900;color:#E05454">'+nUrg+'</div>'
-      + '<div style="font-size:8px;color:#E05454;font-weight:700">URG</div></div>'
-      + '<div style="flex:1;background:rgba(224,160,48,.12);border-radius:6px;padding:4px;text-align:center">'
-      + '<div style="font-size:14px;font-weight:900;color:#E0A030">'+nAtt+'</div>'
-      + '<div style="font-size:8px;color:#E0A030;font-weight:700">ATT</div></div>'
-      + '<div style="flex:1;background:rgba(78,170,112,.12);border-radius:6px;padding:4px;text-align:center">'
-      + '<div style="font-size:14px;font-weight:900;color:#4EAA70">'+nOk+'</div>'
-      + '<div style="font-size:8px;color:#4EAA70;font-weight:700">OK</div></div>'
-      + '<div style="flex:1;background:rgba(74,123,196,.1);border-radius:6px;padding:4px;text-align:center">'
-      + '<div style="font-size:14px;font-weight:900;color:'+cfg.cor+'">'+lista.length+'</div>'
-      + '<div style="font-size:8px;color:#5C8AA8;font-weight:700">TOT</div></div>'
-      + '</div>';
+      if(ch.length){
+        h+='<div style="font-size:8px;font-weight:800;color:#4A7BC4;text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px">CH</div>';
+        ch.forEach(function(c){ h+=linha(c); });
+      }
+      if(ctr.length){
+        h+='<div style="font-size:8px;font-weight:800;color:#5A9E6E;text-transform:uppercase;letter-spacing:.07em;margin:'+(ch.length?'5px':0)+' 0 2px">CTR</div>';
+        ctr.forEach(function(c){ h+=linha(c); });
+      }
 
-    // Separador CH / CTR
-    var ch  = lista.filter(function(c){ return (c.tipo||'CH')==='CH'; });
-    var ctr = lista.filter(function(c){ return c.tipo==='CTR'; });
-
-    function linhaCliente(c) {
-      var al = calcAlerta(c);
-      var dot = !al ? '#4EAA70' : al.tipo==='urg' ? '#E05454' : al.tipo==='att' ? '#E0A030' : '#4A7BC4';
-      var diasTxt = '';
-      if (al && al.dias < 9999) diasTxt = al.dias + 'd';
-      else if (al) diasTxt = '!';
-      var primeiroNome = (c.nome||'').split(' ')[0];
-      var sobrenome = (c.nome||'').split(' ')[1] || '';
-      var nomeExib = primeiroNome + (sobrenome?' '+sobrenome[0]+'.':'');
-      return '<div onclick="abrirCliente(\''+c.id+'\')" '
-        + 'style="display:flex;align-items:center;gap:5px;padding:4px 0;cursor:pointer;'
-        + 'border-bottom:1px solid rgba(255,255,255,.03)">'
-        + '<div style="width:6px;height:6px;border-radius:50%;background:'+dot+';flex-shrink:0"></div>'
-        + '<div style="flex:1;font-size:11px;color:#C8E0F4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+E(nomeExib)+'</div>'
-        + (diasTxt?'<div style="font-size:9px;font-weight:800;color:'+dot+'">'+diasTxt+'</div>':'')
-        + '</div>';
+      if(expanded && lista.length>mostrar.length){
+        h+='<div style="font-size:9px;color:#3A5E7A;padding-top:3px">+'+(lista.length-mostrar.length)+' em dia</div>';
+      }
     }
 
-    if (ch.length) {
-      h += '<div style="font-size:9px;font-weight:800;color:#4A7BC4;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">CH</div>';
-      ch.forEach(function(c){ h += linhaCliente(c); });
-    }
-    if (ctr.length) {
-      h += '<div style="font-size:9px;font-weight:800;color:#5A9E6E;text-transform:uppercase;letter-spacing:.08em;margin:'+(ch.length?'6px':0)+' 0 3px">CTR</div>';
-      ctr.forEach(function(c){ h += linhaCliente(c); });
-    }
-    if (!lista.length) {
-      h += '<div style="font-size:11px;color:#3A5E7A;text-align:center;padding:10px 0">Sem clientes</div>';
-    }
-
-    h += '</div>';
+    h+='</div>';
   });
 
-  h += '</div>';
-  el.innerHTML = h;
+  h+='</div>';
+  el.innerHTML=h;
 }
 
 
@@ -4657,6 +4643,7 @@ paneDecl = function() {
     }, 50);
   };
 })();
+
 
 
 </script>
