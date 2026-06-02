@@ -746,6 +746,7 @@ select.fc option{background:#080F1A;color:var(--t1)}
 
 <script>
 
+
 // ═══════════════════════════════════════════════════════════════
 // GESTÃO CH v3 — CORE DATA LAYER
 // Offline-first · LocalStorage · Google Sheets Sync
@@ -3347,8 +3348,11 @@ renderDB = function() {
     }
   }
 
-  // Notas fixas do calendário abaixo dos alertas
-  _renderNotasFixas();
+  // Notas fixas e avisos
+  try { notaRenderizar(); } catch(e) {}
+
+  // Cronograma Ter/Qua/Qui
+  try { renderCronograma(); } catch(e) {}
 
   // Renderizar calendário
   setTimeout(function(){ try{ CAL.render(); }catch(e){} }, 80);
@@ -4147,102 +4151,9 @@ function _finalizarServico(id) {
 
 // ── DECLARAÇÕES EM LOTE + PDF/Word ──────────────────────────
 
-// Página de declarações reescrita com seleção múltipla
-renderDeclaracoesMenu = function() {
-  var el = G('pg-declaracoes'); if (!el) return;
-  var cl = STATE.clienteId ? CL.get(STATE.clienteId) : null;
 
-  var h = '';
-  // Aviso de cliente
-  if (cl) {
-    h += '<div style="background:rgba(90,158,110,.08);border:1px solid rgba(90,158,110,.22);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:9px;font-size:13px">'
-      + '<span>👤</span><span style="color:#5A9E6E;font-weight:700">'+E(cl.nome)+'</span>'
-      + '<button onclick="STATE.clienteId=null;renderDeclaracoesMenu()" style="margin-left:auto;background:none;border:none;color:#5C8AA8;cursor:pointer;font-size:12px">✕ Limpar</button>'
-      + '</div>';
-  } else {
-    h += '<div style="background:rgba(224,160,48,.07);border:1px solid rgba(224,160,48,.22);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E0A030;display:flex;align-items:center;gap:8px">'
-      + '<span>💡</span><span>Abra um cliente para preencher automaticamente ou gere em lote</span></div>';
-  }
 
-  // Botões de ação em lote
-  h += '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">'
-    + '<button onclick="_declSelecionarTodas()" style="height:36px;padding:0 14px;background:rgba(90,158,110,.1);border:1px solid rgba(90,158,110,.25);border-radius:8px;color:#5A9E6E;font-size:12px;font-weight:700;cursor:pointer">☑️ Selecionar Todas</button>'
-    + '<button onclick="_declDesmarcarTodas()" style="height:36px;padding:0 14px;background:rgba(74,123,196,.1);border:1px solid rgba(74,123,196,.22);border-radius:8px;color:#4A7BC4;font-size:12px;font-weight:700;cursor:pointer">⬜ Limpar</button>'
-    + '<button onclick="_gerarLote(\'gdoc\')" style="height:36px;padding:0 14px;background:linear-gradient(135deg,#2A5038,#1A3050);color:#72BA86;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">🤖 Gerar Selecionadas (Mala Direta)</button>'
-    + '</div>';
-
-  // Cards de declarações com checkbox
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
-  DECLS.forEach(function(d) {
-    h += '<div id="decl-card-'+d.id+'" onclick="_declToggle(\''+d.id+'\')" '
-      + 'style="background:#112030;border:1px solid rgba(74,123,196,.14);border-radius:10px;padding:13px 12px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;align-items:center;text-align:center;gap:7px;position:relative">'
-      + '<div id="decl-chk-'+d.id+'" style="position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:5px;border:1.5px solid rgba(74,123,196,.3);background:transparent;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:#fff"></div>'
-      + '<span style="font-size:22px">'+d.ic+'</span>'
-      + '<div style="font-size:12px;font-weight:700;color:#E8F4FF;line-height:1.3">'+d.nm+'</div>'
-      + '<button onclick="event.stopPropagation();abrirDecl(\''+d.id+'\')" style="width:100%;height:28px;background:rgba(74,123,196,.1);border:1px solid rgba(74,123,196,.2);border-radius:6px;color:#4A7BC4;font-size:11px;font-weight:700;cursor:pointer;margin-top:3px">Abrir →</button>'
-      + '</div>';
-  });
-  h += '</div>';
-  el.innerHTML = h;
-  window._declSel = window._declSel || {};
-};
-
-window._declSel = {};
-
-function _declToggle(id) {
-  _declSel[id] = !_declSel[id];
-  var card = G('decl-card-'+id);
-  var chk  = G('decl-chk-'+id);
-  if (!card || !chk) return;
-  if (_declSel[id]) {
-    card.style.borderColor = '#5A9E6E';
-    card.style.background  = 'rgba(90,158,110,.1)';
-    chk.style.background   = '#5A9E6E';
-    chk.style.borderColor  = '#5A9E6E';
-    chk.textContent        = '✓';
-  } else {
-    card.style.borderColor = 'rgba(74,123,196,.14)';
-    card.style.background  = '#112030';
-    chk.style.background   = 'transparent';
-    chk.style.borderColor  = 'rgba(74,123,196,.3)';
-    chk.textContent        = '';
-  }
-}
-
-function _declSelecionarTodas() {
-  DECLS.forEach(function(d) { _declSel[d.id] = false; _declToggle(d.id); });
-}
-
-function _declDesmarcarTodas() {
-  DECLS.forEach(function(d) { if(_declSel[d.id]) _declToggle(d.id); });
-}
-
-function _gerarLote(modo) {
-  var selecionadas = DECLS.filter(function(d){ return _declSel[d.id]; });
-  if (!selecionadas.length) { APP.toast('Selecione pelo menos uma declaração','warn',3000); return; }
-  var cl = STATE.clienteId ? CL.get(STATE.clienteId) : null;
-  if (!cl || !cl.nome) { APP.toast('Abra um cliente antes de gerar em lote','warn',4000); return; }
-
-  APP.toast('Gerando ' + selecionadas.length + ' documento(s)...','info',3000);
-  var total = selecionadas.length;
-  var ok = 0;
-
-  selecionadas.forEach(function(d, i) {
-    setTimeout(function() {
-      gerarMalaDireta(d.id, cl);
-    }, i * 1500); // 1.5s entre cada para não sobrecarregar
-  });
-}
-
-// ── Página de declarações também mostra quando dentro de cliente ─
-var _paneDecl_orig = paneDecl;
-paneDecl = function() {
-  renderDeclaracoesMenu();
-  // Recriar no pane do cliente
-  var el = APP.$('pane-decl'); if (el._isFake) return;
-  var pg = G('pg-declaracoes'); if (!pg) return;
-  el.innerHTML = pg.innerHTML;
-};
+;
 
 
 // ════════════════════════════════════════════════════════════
@@ -4252,52 +4163,8 @@ paneDecl = function() {
 // Estado de seleção das declarações
 var _declSelIds = {};
 
-paneDecl = function() {
-  var el = APP.$('pane-decl'); if (el._isFake) return;
-  var cl = STATE.clienteId ? CL.get(STATE.clienteId) : null;
-  var temCli = !!(cl && cl.nome);
 
-  var h = '';
-
-  // Banner cliente ativo
-  if (temCli) {
-    h += '<div style="background:rgba(90,158,110,.08);border:1px solid rgba(90,158,110,.22);border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:9px">'
-      + '<span style="font-size:18px">👤</span>'
-      + '<div style="flex:1"><div style="font-size:13px;font-weight:800;color:#E8F4FF">' + E(cl.nome) + '</div>'
-      + '<div style="font-size:11px;color:#5A9E6E">Mala direta ativa</div></div></div>';
-  } else {
-    h += '<div style="background:rgba(224,160,48,.07);border:1px solid rgba(224,160,48,.22);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#E0A030">'
-      + '⚠️ Abra um cliente para usar a mala direta automática</div>';
-  }
-
-  // Botões de ação global
-  h += '<div style="display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap">'
-    + '<button onclick="_declSelecionarTodos(true)" style="height:34px;padding:0 12px;background:rgba(74,123,196,.1);border:1px solid rgba(74,123,196,.25);border-radius:7px;color:#4A7BC4;font-size:12px;font-weight:700;cursor:pointer">☑️ Todas</button>'
-    + '<button onclick="_declSelecionarTodos(false)" style="height:34px;padding:0 12px;background:rgba(74,123,196,.07);border:1px solid rgba(74,123,196,.18);border-radius:7px;color:#5C8AA8;font-size:12px;font-weight:700;cursor:pointer">⬜ Nenhuma</button>'
-    + '<button onclick="_declGerarSelecionadas()" style="height:34px;padding:0 14px;background:linear-gradient(135deg,#2A5038,#1A3050);border:none;border-radius:7px;color:#72BA86;font-size:12px;font-weight:800;cursor:pointer;margin-left:auto">🤖 Gerar Selecionadas</button>'
-    + '</div>';
-
-  // Cards das declarações com checkbox
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
-  DECLS.forEach(function(d) {
-    var sel = !!_declSelIds[d.id];
-    h += '<div style="position:relative;background:#112030;border:1px solid '+(sel?'#5A9E6E':'rgba(74,123,196,.12)')+';border-radius:10px;padding:14px 12px;cursor:pointer;transition:.15s;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px" '
-      + 'onclick="_declToggle(\'' + d.id + '\')" '
-      + 'onmouseover="this.style.borderColor=\'' + (sel?'#5A9E6E':'#4A7BC4') + '\'" '
-      + 'onmouseout="this.style.borderColor=\'' + (sel?'#5A9E6E':'rgba(74,123,196,.12)') + '\'">'
-      // Checkbox canto superior direito
-      + '<div style="position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:5px;border:1.5px solid '+(sel?'#5A9E6E':'rgba(74,123,196,.3)')+';background:'+(sel?'#5A9E6E':'transparent')+';display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:900">'+(sel?'✓':'')+'</div>'
-      + '<span style="font-size:22px">' + d.ic + '</span>'
-      + '<div style="font-size:12px;font-weight:700;color:#E8F4FF;line-height:1.3">' + d.nm + '</div>'
-      // Botão abrir individual
-      + '<button onclick="event.stopPropagation();abrirDecl(\'' + d.id + '\')" '
-      + 'style="height:28px;padding:0 10px;background:rgba(74,123,196,.12);border:1px solid rgba(74,123,196,.25);border-radius:6px;color:#4A7BC4;font-size:11px;font-weight:700;cursor:pointer">Abrir →</button>'
-      + '</div>';
-  });
-  h += '</div>';
-
-  el.innerHTML = h;
-};
+;
 
 function _declToggle(id) {
   _declSelIds[id] = !_declSelIds[id];
@@ -4534,107 +4401,8 @@ function rlFiltro(filtro) {
 // ════════════════════════════════════════════════════════════
 var _declSelIds = {};
 
-paneDecl = function() {
-  var el = APP.$('pane-decl'); if (el._isFake) return;
-  var cl = STATE.clienteId ? CL.get(STATE.clienteId) : null;
-  var temCli = !!(cl && cl.nome);
 
-  // Montar HTML
-  var div = document.createElement('div');
-
-  // Banner cliente
-  var banner = document.createElement('div');
-  if (temCli) {
-    banner.style.cssText = 'background:rgba(90,158,110,.08);border:1px solid rgba(90,158,110,.22);border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:9px';
-    banner.innerHTML = '<span style="font-size:18px">👤</span><div style="flex:1"><div style="font-size:13px;font-weight:800;color:#E8F4FF">'+E(cl.nome)+'</div><div style="font-size:11px;color:#5A9E6E">Mala direta ativa</div></div>';
-  } else {
-    banner.style.cssText = 'background:rgba(224,160,48,.07);border:1px solid rgba(224,160,48,.22);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#E0A030';
-    banner.textContent = '⚠️ Abra um cliente para usar a mala direta automática';
-  }
-  div.appendChild(banner);
-
-  // Barra de ações
-  var barra = document.createElement('div');
-  barra.style.cssText = 'display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap';
-
-  var btnTodas = document.createElement('button');
-  btnTodas.style.cssText = 'height:34px;padding:0 12px;background:rgba(74,123,196,.1);border:1px solid rgba(74,123,196,.25);border-radius:7px;color:#4A7BC4;font-size:12px;font-weight:700;cursor:pointer';
-  btnTodas.textContent = '☑️ Selecionar Todas';
-  btnTodas.onclick = function(){ DECLS.forEach(function(d){ _declSelIds[d.id]=true; }); paneDecl(); };
-
-  var btnNenhuma = document.createElement('button');
-  btnNenhuma.style.cssText = 'height:34px;padding:0 12px;background:rgba(74,123,196,.07);border:1px solid rgba(74,123,196,.18);border-radius:7px;color:#5C8AA8;font-size:12px;font-weight:700;cursor:pointer';
-  btnNenhuma.textContent = '⬜ Limpar';
-  btnNenhuma.onclick = function(){ _declSelIds={}; paneDecl(); };
-
-  var btnGerar = document.createElement('button');
-  btnGerar.style.cssText = 'height:34px;padding:0 14px;background:linear-gradient(135deg,#2A5038,#1A3050);border:none;border-radius:7px;color:#72BA86;font-size:12px;font-weight:800;cursor:pointer;margin-left:auto';
-  btnGerar.innerHTML = '🤖 Gerar Selecionadas';
-  btnGerar.onclick = _declGerarSelecionadas;
-
-  barra.appendChild(btnTodas);
-  barra.appendChild(btnNenhuma);
-  barra.appendChild(btnGerar);
-  div.appendChild(barra);
-
-  // Grid de cards
-  var grid = document.createElement('div');
-  grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px';
-
-  DECLS.forEach(function(d) {
-    var sel = !!_declSelIds[d.id];
-
-    var card = document.createElement('div');
-    card.style.cssText = 'position:relative;background:#112030;border:2px solid '
-      + (sel?'#5A9E6E':'rgba(74,123,196,.15)')
-      + ';border-radius:10px;padding:14px 12px;cursor:pointer;transition:.15s;'
-      + 'display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px';
-
-    // Toggle ao clicar no card
-    card.onclick = function(e){
-      if (e.target.tagName === 'BUTTON') return;
-      _declSelIds[d.id] = !_declSelIds[d.id];
-      paneDecl();
-    };
-
-    // Checkbox canto direito
-    var chk = document.createElement('div');
-    chk.style.cssText = 'position:absolute;top:8px;right:8px;width:20px;height:20px;'
-      + 'border-radius:6px;border:2px solid '+(sel?'#5A9E6E':'rgba(74,123,196,.3)')
-      + ';background:'+(sel?'#5A9E6E':'transparent')
-      + ';display:flex;align-items:center;justify-content:center;'
-      + 'font-size:12px;font-weight:900;color:#fff';
-    chk.textContent = sel ? '✓' : '';
-    card.appendChild(chk);
-
-    // Ícone + nome
-    var ic = document.createElement('span');
-    ic.style.cssText = 'font-size:24px';
-    ic.textContent = d.ic;
-    card.appendChild(ic);
-
-    var nm = document.createElement('div');
-    nm.style.cssText = 'font-size:12px;font-weight:700;color:#E8F4FF;line-height:1.3';
-    nm.textContent = d.nm;
-    card.appendChild(nm);
-
-    // Botão Abrir individual
-    var btnAbrir = document.createElement('button');
-    btnAbrir.style.cssText = 'height:28px;padding:0 12px;background:rgba(74,123,196,.12);'
-      + 'border:1px solid rgba(74,123,196,.25);border-radius:6px;color:#4A7BC4;'
-      + 'font-size:11px;font-weight:700;cursor:pointer';
-    btnAbrir.textContent = 'Abrir →';
-    var _id = d.id;
-    btnAbrir.onclick = function(e){ e.stopPropagation(); abrirDecl(_id); };
-    card.appendChild(btnAbrir);
-
-    grid.appendChild(card);
-  });
-
-  div.appendChild(grid);
-  el.innerHTML = '';
-  el.appendChild(div);
-};
+;
 
 // ════════════════════════════════════════════════════════════
 //  CRONOGRAMA TERÇA/QUINTA — distribuição automática
@@ -4793,6 +4561,103 @@ function renderCronograma() {
   h += '</div>';
   el.innerHTML = h;
 }
+
+
+// ════════════════════════════════════════════════════════
+//  VERSÃO FINAL — paneDecl sem dependências quebradas
+// ════════════════════════════════════════════════════════
+var _declSelIds = typeof _declSelIds !== 'undefined' ? _declSelIds : {};
+
+paneDecl = function() {
+  var el = APP.$('pane-decl');
+  if (!el || el._isFake) return;
+  var cl = STATE.clienteId ? CL.get(STATE.clienteId) : null;
+  var temCli = !!(cl && cl.nome);
+
+  var wrap = document.createElement('div');
+
+  // Banner cliente
+  var banner = document.createElement('div');
+  if (temCli) {
+    banner.style.cssText = 'background:rgba(90,158,110,.08);border:1px solid rgba(90,158,110,.22);border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:9px';
+    banner.innerHTML = '<span style="font-size:18px">👤</span><div style="flex:1"><div style="font-size:13px;font-weight:800;color:#E8F4FF">'+E(cl.nome)+'</div><div style="font-size:11px;color:#5A9E6E">Mala direta ativa</div></div>';
+  } else {
+    banner.style.cssText = 'background:rgba(224,160,48,.07);border:1px solid rgba(224,160,48,.22);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#E0A030';
+    banner.textContent = '⚠️ Abra um cliente para usar a mala direta automática';
+  }
+  wrap.appendChild(banner);
+
+  // Barra de ações
+  var barra = document.createElement('div');
+  barra.style.cssText = 'display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap';
+  var btnT = document.createElement('button');
+  btnT.style.cssText = 'height:34px;padding:0 12px;background:rgba(74,123,196,.1);border:1px solid rgba(74,123,196,.25);border-radius:7px;color:#4A7BC4;font-size:12px;font-weight:700;cursor:pointer';
+  btnT.textContent = '☑️ Selecionar Todas';
+  btnT.onclick = function(){ DECLS.forEach(function(d){ _declSelIds[d.id]=true; }); paneDecl(); };
+  var btnN = document.createElement('button');
+  btnN.style.cssText = 'height:34px;padding:0 12px;background:rgba(74,123,196,.07);border:1px solid rgba(74,123,196,.18);border-radius:7px;color:#5C8AA8;font-size:12px;font-weight:700;cursor:pointer';
+  btnN.textContent = '⬜ Limpar';
+  btnN.onclick = function(){ _declSelIds={}; paneDecl(); };
+  var btnG = document.createElement('button');
+  btnG.style.cssText = 'height:34px;padding:0 14px;background:linear-gradient(135deg,#2A5038,#1A3050);border:none;border-radius:7px;color:#72BA86;font-size:12px;font-weight:800;cursor:pointer;margin-left:auto';
+  btnG.innerHTML = '🤖 Gerar Selecionadas';
+  btnG.onclick = function(){ _declGerarSelecionadas(); };
+  barra.appendChild(btnT); barra.appendChild(btnN); barra.appendChild(btnG);
+  wrap.appendChild(barra);
+
+  // Grid de cards
+  var grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px';
+  DECLS.forEach(function(d) {
+    var sel = !!_declSelIds[d.id];
+    var card = document.createElement('div');
+    card.style.cssText = 'position:relative;background:#112030;border:2px solid '
+      +(sel?'#5A9E6E':'rgba(74,123,196,.15)')
+      +';border-radius:10px;padding:14px 12px;cursor:pointer;transition:.15s;'
+      +'display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px';
+    card.onclick = function(e){ if(e.target.tagName==='BUTTON')return; _declSelIds[d.id]=!_declSelIds[d.id]; paneDecl(); };
+    // Checkbox
+    var chk = document.createElement('div');
+    chk.style.cssText = 'position:absolute;top:8px;right:8px;width:20px;height:20px;'
+      +'border-radius:6px;border:2px solid '+(sel?'#5A9E6E':'rgba(74,123,196,.3)')
+      +';background:'+(sel?'#5A9E6E':'transparent')
+      +';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff';
+    chk.textContent = sel?'✓':'';
+    card.appendChild(chk);
+    // Ícone
+    var ic = document.createElement('span');
+    ic.style.cssText = 'font-size:24px'; ic.textContent = d.ic;
+    card.appendChild(ic);
+    // Nome
+    var nm = document.createElement('div');
+    nm.style.cssText = 'font-size:12px;font-weight:700;color:#E8F4FF;line-height:1.3';
+    nm.textContent = d.nm;
+    card.appendChild(nm);
+    // Botão abrir
+    var btn = document.createElement('button');
+    btn.style.cssText = 'height:28px;padding:0 12px;background:rgba(74,123,196,.12);border:1px solid rgba(74,123,196,.25);border-radius:6px;color:#4A7BC4;font-size:11px;font-weight:700;cursor:pointer';
+    btn.textContent = 'Abrir →';
+    var _did = d.id;
+    btn.onclick = function(e){ e.stopPropagation(); abrirDecl(_did); };
+    card.appendChild(btn);
+    grid.appendChild(card);
+  });
+  wrap.appendChild(grid);
+  el.innerHTML = ''; el.appendChild(wrap);
+};
+
+// Garantir que renderCronograma funciona mesmo sem clientes
+(function() {
+  var _origRDB = renderDB;
+  renderDB = function() {
+    _origRDB();
+    setTimeout(function(){
+      try{ notaRenderizar(); }catch(e){}
+      try{ renderCronograma(); }catch(e){}
+    }, 50);
+  };
+})();
+
 
 </script>
 </body>
