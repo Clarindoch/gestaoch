@@ -4640,6 +4640,13 @@ paneDecl = function() {
 //  CRONOGRAMA TERÇA/QUINTA — distribuição automática
 // ════════════════════════════════════════════════════════════
 
+
+
+
+// ════════════════════════════════════════════════════════════
+//  CRONOGRAMA TER/QUA/QUI — distribuição automática
+// ════════════════════════════════════════════════════════════
+
 function renderCronograma() {
   var el = G('dash-cronograma'); if (!el) return;
 
@@ -4647,111 +4654,137 @@ function renderCronograma() {
     return c.nome && c.status !== 'Inativo';
   });
 
-  if (!clientes.length) {
-    el.style.display = 'none';
-    return;
-  }
+  if (!clientes.length) { el.style.display='none'; return; }
   el.style.display = 'block';
 
-  // Separar CH e CTR
-  var ch  = clientes.filter(function(c){ return (c.tipo||'CH') === 'CH'; });
-  var ctr = clientes.filter(function(c){ return c.tipo === 'CTR'; });
+  // Ordenar por nome
+  clientes.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
 
-  // Distribuir em blocos Ter/Qui dentro de 14 dias
-  // Próximas 4 datas de trabalho (terça=2, quinta=4)
-  var diasTrabalho = [];
-  var d = new Date(); d.setHours(0,0,0,0);
-  while (diasTrabalho.length < 4) {
-    d = new Date(d.getTime() + 86400000);
-    if (d.getDay() === 2 || d.getDay() === 4) { // 2=Ter, 4=Qui
-      diasTrabalho.push(new Date(d));
+  // Distribuir em 3 grupos fixos: Terça(2), Quarta(3), Quinta(4)
+  var grupos = { 2:[], 3:[], 4:[] }; // dia da semana
+  clientes.forEach(function(c, i) {
+    var slot = i % 3; // 0=Terça, 1=Quarta, 2=Quinta
+    var diaSemana = [2, 3, 4][slot];
+    grupos[diaSemana].push(c);
+  });
+
+  // Próximo dia de trabalho de cada tipo
+  function proximodia(diaSemana) {
+    var d = new Date(); d.setHours(0,0,0,0);
+    for (var i = 0; i <= 7; i++) {
+      var t = new Date(d.getTime() + i*86400000);
+      if (t.getDay() === diaSemana) return t;
     }
+    return d;
   }
 
-  // Distribuir todos os clientes pelos 4 dias de trabalho
-  function distribuir(lista) {
-    var blocos = [[],[],[],[]];
-    lista.forEach(function(c, i){ blocos[i % 4].push(c); });
-    return blocos;
-  }
-
-  var blocoCH  = distribuir(ch);
-  var blocoCTR = distribuir(ctr);
-
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
   var DIAS_NOME = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   var MESES_ABR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
-  // Descobrir em qual bloco estamos hoje
-  var hoje = new Date(); hoje.setHours(0,0,0,0);
-  var blocoAtual = 0;
-  diasTrabalho.forEach(function(dt, i){
-    if (dt <= hoje) blocoAtual = i;
-  });
+  var DIAS_CONFIG = [
+    { diaSemana:2, nome:'Terça-feira',  cor:'#4A7BC4', corBg:'rgba(74,123,196,.08)'  },
+    { diaSemana:3, nome:'Quarta-feira', cor:'#A78BFA', corBg:'rgba(167,139,250,.08)' },
+    { diaSemana:4, nome:'Quinta-feira', cor:'#5A9E6E', corBg:'rgba(90,158,110,.08)'  }
+  ];
 
-  var h = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
-    + '<div style="font-size:13px;font-weight:800;color:#E8F4FF">📅 Cronograma Ter/Qui</div>'
-    + '<div style="font-size:11px;color:#5C8AA8">' + clientes.length + ' clientes distribuídos</div>'
+  // Total e quantitativo
+  var total = clientes.length;
+  var porDia = Math.ceil(total / 3);
+
+  var h = '';
+
+  // Header geral
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+    + '<div style="font-size:13px;font-weight:800;color:#E8F4FF">📅 Agenda Ter · Qua · Qui</div>'
+    + '<div style="font-size:11px;color:#5C8AA8">'
+    + total + ' clientes · ~' + porDia + '/dia'
+    + '</div></div>';
+
+  // Legenda de alertas
+  h += '<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap">'
+    + '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#5C8AA8"><div style="width:8px;height:8px;border-radius:50%;background:#4EAA70"></div>Ok (0-12d)</div>'
+    + '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#5C8AA8"><div style="width:8px;height:8px;border-radius:50%;background:#E0A030"></div>Atenção (13-14d)</div>'
+    + '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#5C8AA8"><div style="width:8px;height:8px;border-radius:50%;background:#E05454"></div>Urgente (15d+)</div>'
     + '</div>';
 
-  // Cards dos dias de trabalho
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  // Cards dos 3 dias
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
 
-  diasTrabalho.forEach(function(dt, i) {
-    var isHoje = dt.getTime() === hoje.getTime();
-    var isFuturo = dt > hoje;
-    var nDia = DIAS_NOME[dt.getDay()];
-    var datStr = dt.getDate() + ' ' + MESES_ABR[dt.getMonth()];
+  DIAS_CONFIG.forEach(function(cfg) {
+    var lista = grupos[cfg.diaSemana] || [];
+    var proxDt = proximodia(cfg.diaSemana);
+    var isHoje = proxDt.getTime() === hoje.getTime();
+    var datStr = proxDt.getDate() + ' ' + MESES_ABR[proxDt.getMonth()];
 
-    var clisCH  = blocoCH[i]  || [];
-    var clisCTR = blocoCTR[i] || [];
-    var total   = clisCH.length + clisCTR.length;
+    // Contar alertas do grupo
+    var nUrg=0, nAtt=0, nOk=0;
+    lista.forEach(function(c){
+      var al = calcAlerta(c);
+      if (!al) nOk++;
+      else if (al.tipo==='urg') nUrg++;
+      else if (al.tipo==='att') nAtt++;
+      else nOk++;
+    });
 
-    h += '<div style="background:'+(isHoje?'rgba(90,158,110,.1)':'#0C1A28')
-      + ';border:1px solid '+(isHoje?'rgba(90,158,110,.4)':'rgba(74,123,196,.14)')
-      + ';border-radius:10px;padding:11px;'+(isFuturo&&!isHoje?'opacity:.7':'')+'">';
+    h += '<div style="background:'+(isHoje?cfg.corBg:'#0C1A28')+';border:1px solid '
+      + (isHoje?cfg.cor:'rgba(74,123,196,.14)')
+      + ';border-radius:12px;padding:11px;overflow:hidden">';
 
-    // Header do dia
-    h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-      + '<div>'
-      + '<span style="font-size:14px;font-weight:900;color:'+(isHoje?'#5A9E6E':'#E8F4FF')+'">'+nDia+'</span>'
-      + '<span style="font-size:11px;color:#5C8AA8;margin-left:6px">'+datStr+'</span>'
-      + (isHoje?'<span style="margin-left:6px;font-size:10px;background:#5A9E6E;color:#fff;padding:1px 6px;border-radius:99px;font-weight:700">HOJE</span>':'')
-      + '</div>'
-      + '<span style="font-size:12px;font-weight:800;color:'+(isHoje?'#5A9E6E':'#9AB8D4')+'">'+total+'</span>'
+    // Header do card
+    h += '<div style="margin-bottom:8px">'
+      + '<div style="font-size:13px;font-weight:900;color:'+cfg.cor+'">'+cfg.nome.split('-')[0].trim()+'</div>'
+      + '<div style="font-size:10px;color:#5C8AA8">'+datStr+(isHoje?' · <b style="color:'+cfg.cor+'">HOJE</b>':'')+'</div>'
       + '</div>';
 
-    // CH
-    if (clisCH.length) {
-      h += '<div style="font-size:9px;font-weight:800;color:#4A7BC4;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">🏢 CH ('+clisCH.length+')</div>';
-      clisCH.slice(0,4).forEach(function(c){
-        var al = calcAlerta(c);
-        var dot = al?(al.tipo==='urg'?'#E05454':al.tipo==='att'?'#E0A030':'#4A7BC4'):'';
-        h += '<div onclick="abrirCliente(\''+c.id+'\')" style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer">'
-          + '<div style="font-size:11px;color:#9AB8D4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'
-          + E((c.nome||'').split(' ').slice(0,2).join(' '))+'</div>'
-          + (dot?'<div style="width:6px;height:6px;border-radius:50%;background:'+dot+';flex-shrink:0"></div>':'')
-          + '</div>';
-      });
-      if (clisCH.length > 4) h += '<div style="font-size:10px;color:#3A5E7A;padding-top:2px">+' + (clisCH.length-4) + ' mais</div>';
+    // Mini contadores
+    h += '<div style="display:flex;gap:4px;margin-bottom:8px">'
+      + '<div style="flex:1;background:rgba(224,84,84,.12);border-radius:6px;padding:4px;text-align:center">'
+      + '<div style="font-size:14px;font-weight:900;color:#E05454">'+nUrg+'</div>'
+      + '<div style="font-size:8px;color:#E05454;font-weight:700">URG</div></div>'
+      + '<div style="flex:1;background:rgba(224,160,48,.12);border-radius:6px;padding:4px;text-align:center">'
+      + '<div style="font-size:14px;font-weight:900;color:#E0A030">'+nAtt+'</div>'
+      + '<div style="font-size:8px;color:#E0A030;font-weight:700">ATT</div></div>'
+      + '<div style="flex:1;background:rgba(78,170,112,.12);border-radius:6px;padding:4px;text-align:center">'
+      + '<div style="font-size:14px;font-weight:900;color:#4EAA70">'+nOk+'</div>'
+      + '<div style="font-size:8px;color:#4EAA70;font-weight:700">OK</div></div>'
+      + '<div style="flex:1;background:rgba(74,123,196,.1);border-radius:6px;padding:4px;text-align:center">'
+      + '<div style="font-size:14px;font-weight:900;color:'+cfg.cor+'">'+lista.length+'</div>'
+      + '<div style="font-size:8px;color:#5C8AA8;font-weight:700">TOT</div></div>'
+      + '</div>';
+
+    // Separador CH / CTR
+    var ch  = lista.filter(function(c){ return (c.tipo||'CH')==='CH'; });
+    var ctr = lista.filter(function(c){ return c.tipo==='CTR'; });
+
+    function linhaCliente(c) {
+      var al = calcAlerta(c);
+      var dot = !al ? '#4EAA70' : al.tipo==='urg' ? '#E05454' : al.tipo==='att' ? '#E0A030' : '#4A7BC4';
+      var diasTxt = '';
+      if (al && al.dias < 9999) diasTxt = al.dias + 'd';
+      else if (al) diasTxt = '!';
+      var primeiroNome = (c.nome||'').split(' ')[0];
+      var sobrenome = (c.nome||'').split(' ')[1] || '';
+      var nomeExib = primeiroNome + (sobrenome?' '+sobrenome[0]+'.':'');
+      return '<div onclick="abrirCliente(\''+c.id+'\')" '
+        + 'style="display:flex;align-items:center;gap:5px;padding:4px 0;cursor:pointer;'
+        + 'border-bottom:1px solid rgba(255,255,255,.03)">'
+        + '<div style="width:6px;height:6px;border-radius:50%;background:'+dot+';flex-shrink:0"></div>'
+        + '<div style="flex:1;font-size:11px;color:#C8E0F4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+E(nomeExib)+'</div>'
+        + (diasTxt?'<div style="font-size:9px;font-weight:800;color:'+dot+'">'+diasTxt+'</div>':'')
+        + '</div>';
     }
 
-    // CTR
-    if (clisCTR.length) {
-      h += '<div style="font-size:9px;font-weight:800;color:#5A9E6E;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;'+(clisCH.length?'margin-top:8px':'')+'"">🏆 CTR ('+clisCTR.length+')</div>';
-      clisCTR.slice(0,4).forEach(function(c){
-        var al = calcAlerta(c);
-        var dot = al?(al.tipo==='urg'?'#E05454':al.tipo==='att'?'#E0A030':'#4A7BC4'):'';
-        h += '<div onclick="abrirCliente(\''+c.id+'\')" style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer">'
-          + '<div style="font-size:11px;color:#9AB8D4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'
-          + E((c.nome||'').split(' ').slice(0,2).join(' '))+'</div>'
-          + (dot?'<div style="width:6px;height:6px;border-radius:50%;background:'+dot+';flex-shrink:0"></div>':'')
-          + '</div>';
-      });
-      if (clisCTR.length > 4) h += '<div style="font-size:10px;color:#3A5E7A;padding-top:2px">+' + (clisCTR.length-4) + ' mais</div>';
+    if (ch.length) {
+      h += '<div style="font-size:9px;font-weight:800;color:#4A7BC4;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">CH</div>';
+      ch.forEach(function(c){ h += linhaCliente(c); });
     }
-
-    if (!total) {
-      h += '<div style="font-size:11px;color:#3A5E7A;text-align:center;padding:8px 0">Sem clientes</div>';
+    if (ctr.length) {
+      h += '<div style="font-size:9px;font-weight:800;color:#5A9E6E;text-transform:uppercase;letter-spacing:.08em;margin:'+(ch.length?'6px':0)+' 0 3px">CTR</div>';
+      ctr.forEach(function(c){ h += linhaCliente(c); });
+    }
+    if (!lista.length) {
+      h += '<div style="font-size:11px;color:#3A5E7A;text-align:center;padding:10px 0">Sem clientes</div>';
     }
 
     h += '</div>';
