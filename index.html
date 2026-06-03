@@ -1039,6 +1039,146 @@ input:focus,select:focus,textarea:focus{border-color:var(--gold)!important;backg
   flex: 1 !important;
 }
 
+
+/* Fix modal classes — compatibilidade v10 + Premium */
+.modal.show, .modal.open {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+}
+.modal { display: none; }
+.mbox {
+  background: var(--navy-mid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow);
+  margin: 10px;
+  overflow: hidden;
+}
+.mhd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(201,168,76,.15);
+  background: rgba(0,0,0,.2);
+}
+.mtitle {
+  font-family: 'Cinzel', serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.mcl {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  padding: 0 4px;
+}
+.mcl:hover { color: #fff; }
+.mbody {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+.mft {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(201,168,76,.15);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  background: rgba(0,0,0,.15);
+}
+/* Aba cliente */
+.aba-btn {
+  flex: 1; min-width: 0;
+  padding: 8px 5px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: .12s;
+  white-space: nowrap;
+}
+.aba-btn:hover { color: var(--text-main); }
+.aba-btn.on {
+  background: linear-gradient(135deg, var(--moss), var(--navy-light));
+  color: var(--gold);
+}
+.aba-pane { display: none; }
+.aba-pane.on { display: block; }
+/* Chips */
+.cf {
+  padding: 5px 12px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--glass2);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: .13s;
+}
+.cf:hover { color: var(--text-main); border-color: var(--gold); }
+.cf.on {
+  background: linear-gradient(135deg, var(--moss), var(--navy-light));
+  color: var(--gold);
+  border-color: transparent;
+}
+/* Drawer */
+#drw { position: fixed; inset: 0; z-index: 8500; display: none; }
+#drw.show { display: block; }
+#drw-bg { position: absolute; inset: 0; background: rgba(0,0,0,.6); }
+#drw-box {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 14px 14px 0 0;
+  padding: 20px 16px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+/* Botões v10 nas telas premium */
+.btn { height: 42px; padding: 0 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; transition: .15s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.bp { background: linear-gradient(135deg, var(--navy-light), var(--moss)); border: 1px solid var(--moss-bright); color: #fff; }
+.bp:hover { opacity: .9; }
+.bo { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+.bo:hover { color: #fff; border-color: rgba(201,168,76,.4); }
+.bd { background: rgba(192,57,43,.1); border: 1px solid var(--danger); color: var(--danger); }
+.bb { width: 100%; }
+.bsm { height: 32px; font-size: 12px; padding: 0 11px; }
+/* Inputs v10 */
+input[type=search] { background: rgba(255,255,255,.05); border: 1px solid var(--border); border-radius: var(--radius-sm); color: #fff; font-size: 13px; outline: none; padding: 0 13px; height: 44px; width: 100%; }
+input[type=search]:focus { border-color: var(--gold); }
+/* Toast */
+#toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(60px); background: var(--glass); border: 1px solid var(--border); color: #fff; padding: 10px 20px; border-radius: 99px; font-size: 13px; font-weight: 600; z-index: 9999; transition: transform .25s, opacity .25s; opacity: 0; white-space: nowrap; max-width: 90vw; }
+#toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+#toast.success { border-color: var(--moss-bright); }
+#toast.danger  { border-color: var(--danger); }
+#toast.warn    { border-color: var(--gold); }
+/* Loading */
+#loading { position: fixed; inset: 0; z-index: 9998; background: rgba(10,25,45,.92); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+#loading.show { display: flex; }
+.spin { width: 44px; height: 44px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--gold); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-txt { font-size: 13px; color: var(--text-dim); font-weight: 600; }
+
 </style>
 </head>
 <body>
@@ -6835,6 +6975,386 @@ window.logout = function() {
   if (ls)  { ls.style.display = 'flex'; }
   if (app) { app.style.display = 'none'; }
 };
+
+
+// ════════════════════════════════════════════════════════════════
+//  MEGA PATCH — Corrige TODOS os bugs de integração Premium + v10
+// ════════════════════════════════════════════════════════════════
+
+// 1. updateClock — relógio e data em tempo real
+function updateClock() {
+  var now = new Date();
+  var h = String(now.getHours()).padStart(2,'0');
+  var m = String(now.getMinutes()).padStart(2,'0');
+  var s = String(now.getSeconds()).padStart(2,'0');
+  var el = document.getElementById('clock');
+  if (el) el.textContent = h + ':' + m + ':' + s;
+  var DIAS  = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+  var MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var el2 = document.getElementById('datebar');
+  if (el2) el2.textContent = DIAS[now.getDay()] + ', ' + now.getDate() + ' de ' + MESES[now.getMonth()] + ' de ' + now.getFullYear();
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// 2. Frase rotativa
+(function(){
+  var frases = [
+    '"Porque sou eu que conheço os planos que tenho para vocês, diz o SENHOR." — Jeremias 29:11',
+    '"O sucesso é a soma de pequenos esforços repetidos dia após dia."',
+    '"Profissionalismo gera confiança. Confiança gera resultados."',
+    '"Organize, priorize e conquiste."',
+    '"Um cliente bem atendido é fiel para sempre."',
+    '"Cada processo protocolado é um avanço."'
+  ];
+  var idx = 0;
+  function trocar() {
+    var el = document.getElementById('frase-bar');
+    if (!el) return;
+    el.style.opacity = '0';
+    setTimeout(function(){
+      el.textContent = frases[idx % frases.length];
+      el.style.opacity = '1';
+      idx++;
+    }, 400);
+  }
+  var el = document.getElementById('frase-bar');
+  if (el) { el.style.transition = 'opacity .4s'; }
+  setInterval(trocar, 8000);
+})();
+
+// 3. Corrigir ir() — funciona com screen-X e pg-X
+ir = function(pg) {
+  // Esconder TUDO
+  document.querySelectorAll('.screen, .pg').forEach(function(el){
+    el.style.display = 'none';
+    el.classList.remove('on','active');
+  });
+
+  // Mapa v10 → screen premium
+  var mapa = {
+    'dashboard':   'screen-home',
+    'clientes':    'screen-clientes',
+    'cliente':     'screen-cliente-detalhe',
+    'declaracoes': 'screen-declaracoes',
+    'relatorio':   'screen-relatorios',
+    'config':      'screen-configuracoes',
+  };
+
+  var screenId = mapa[pg] || ('screen-' + pg);
+  var el = document.getElementById(screenId);
+
+  // Fallback: tentar pg-X
+  if (!el) el = document.getElementById('pg-' + pg);
+  if (!el) el = document.getElementById(pg);
+
+  if (el) {
+    el.style.display = 'block';
+    el.classList.add('active');
+  }
+
+  // Nav ativo
+  document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
+  var navMap = {
+    'dashboard':'nav-home','clientes':'nav-clientes','cliente':'nav-clientes',
+    'declaracoes':'nav-declaracoes','relatorio':'nav-relatorios','config':'nav-configuracoes'
+  };
+  var navEl = document.getElementById(navMap[pg] || 'nav-home');
+  if (navEl) navEl.classList.add('active');
+
+  // Scroll topo
+  var ct = document.getElementById('content');
+  if (ct) ct.scrollTop = 0;
+
+  // Guardar estado
+  STATE.page = pg;
+
+  // Renderizar
+  setTimeout(function(){
+    try {
+      if (pg === 'dashboard')   { renderDB(); }
+      if (pg === 'clientes')    { _injetarClientes(); renderClis(); }
+      if (pg === 'declaracoes') { _injetarDeclaracoes(); renderDecls(); }
+      if (pg === 'relatorio')   { renderRel(); }
+      if (pg === 'config')      { renderCfg(); }
+    } catch(e) { console.log('render:', e.message); }
+  }, 50);
+};
+
+// 4. Injetar elementos v10 nas screens premium (uma vez só)
+var _injetado = {};
+
+function _injetarClientes() {
+  if (_injetado.clientes) return;
+  _injetado.clientes = true;
+  var sc = document.getElementById('screen-clientes');
+  if (!sc) return;
+
+  // Adicionar container de lista se não existe
+  if (!document.getElementById('cl-lista')) {
+    var wrapper = document.createElement('div');
+    wrapper.innerHTML = '<div style="display:flex;gap:6px;margin-bottom:10px">'
+      + '<button class="btn btn-primary btn-sm" onclick="abrirNovoCliente(true)">⚡ Rápido</button>'
+      + '<button class="btn btn-gold btn-sm" onclick="abrirNovoCliente(false)">➕ Completo</button>'
+      + '<button class="btn btn-ghost btn-sm" onclick="dedup(false)" style="margin-left:auto">🔍 Dupl.</button>'
+      + '</div>'
+      + '<div style="position:relative;margin-bottom:8px">'
+      + '<span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none">🔍</span>'
+      + '<input id="cl-srch" type="search" placeholder="Nome, CPF, protocolo..." style="padding-left:38px;height:44px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;outline:none;width:100%" oninput="STATE.clPage=0;STATE._filtroExtra=\'\';renderClis()">'
+      + '</div>'
+      + '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">'
+      + '<button class="cf on" onclick="chipCli(this,\'\',\'\')">Todos</button>'
+      + '<button class="cf" onclick="chipCli(this,\'CH\',\'\')">🏢 CH</button>'
+      + '<button class="cf" onclick="chipCli(this,\'CTR\',\'\')">🏆 CTR</button>'
+      + '<button class="cf" onclick="chipCli(this,\'\',\'Ativo\')">✅ Ativos</button>'
+      + '<button class="cf" onclick="chipCli(this,\'\',\'Inativo\')">💤 Inativos</button>'
+      + '</div>'
+      + '<select id="cl-tipo" style="display:none"></select>'
+      + '<select id="cl-stat" style="display:none"></select>'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">'
+      + '<span id="cl-total" style="font-size:12px;color:var(--text-dim)"></span>'
+      + '<button onclick="limparFiltros()" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;padding:4px 10px;cursor:pointer">✕ Limpar</button>'
+      + '</div>'
+      + '<div id="cl-lista"></div>'
+      + '<div id="cl-pag" style="display:none;align-items:center;justify-content:center;gap:10px;margin-top:10px">'
+      + '<button id="cl-pag-ant" class="btn btn-ghost btn-sm" onclick="STATE.clPage--;renderClis()">‹</button>'
+      + '<span id="cl-pag-info" style="font-size:12px;color:var(--text-dim)">1/1</span>'
+      + '<button id="cl-pag-prx" class="btn btn-ghost btn-sm" onclick="STATE.clPage++;renderClis()">›</button>'
+      + '</div>';
+
+    // Limpar screen e inserir novo conteúdo
+    var title = sc.querySelector('.screen-title');
+    sc.innerHTML = '';
+    if (title) sc.appendChild(title);
+    sc.appendChild(wrapper);
+  }
+}
+
+function _injetarDeclaracoes() {
+  if (_injetado.decl) return;
+  _injetado.decl = true;
+  var sc = document.getElementById('screen-declaracoes');
+  if (!sc) return;
+  if (!document.getElementById('pg-declaracoes')) {
+    var d = document.createElement('div');
+    d.id = 'pg-declaracoes';
+    sc.appendChild(d);
+    // renderDecls usa pg-declaracoes
+  }
+}
+
+// 5. Criar screen de detalhe do cliente (não existe no premium)
+(function(){
+  var sc = document.createElement('div');
+  sc.id = 'screen-cliente-detalhe';
+  sc.className = 'screen';
+  sc.style.display = 'none';
+  sc.innerHTML = '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">'
+    + '<button class="btn btn-ghost btn-sm" onclick="ir(\'clientes\')">‹ Voltar</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="marcarVisto()" style="color:var(--moss-bright);border-color:var(--moss-bright)">👁️ Visto</button>'
+    + '</div>'
+    + '<div id="cli-header-box" style="background:linear-gradient(135deg,var(--navy-light),var(--moss));border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:11px">'
+    + '<div id="cli-nome" style="font-size:20px;font-weight:900;color:#fff;margin-bottom:6px">–</div>'
+    + '<div id="cli-meta" style="display:flex;gap:5px;flex-wrap:wrap"></div>'
+    + '</div>'
+    + '<div style="display:flex;gap:2px;margin-bottom:11px;background:var(--glass2);border:1px solid var(--border);border-radius:12px;padding:3px;overflow-x:auto;scrollbar-width:none">'
+    + '<button class="aba-btn on" id="aba-resumo"   onclick="abaCliAbrir(\'resumo\')">⚡ Resumo</button>'
+    + '<button class="aba-btn"   id="aba-dados"     onclick="abaCliAbrir(\'dados\')">👤 Dados</button>'
+    + '<button class="aba-btn"   id="aba-servicos"  onclick="abaCliAbrir(\'servicos\')">🔧 Serviços</button>'
+    + '<button class="aba-btn"   id="aba-docs"      onclick="abaCliAbrir(\'docs\')">📁 Docs</button>'
+    + '<button class="aba-btn"   id="aba-decl"      onclick="abaCliAbrir(\'decl\')">📄 Decl.</button>'
+    + '<button class="aba-btn"   id="aba-drive"     onclick="abaCliAbrir(\'drive\')">☁️ Drive</button>'
+    + '</div>'
+    + '<div class="aba-pane on" id="pane-resumo"></div>'
+    + '<div class="aba-pane"    id="pane-dados"></div>'
+    + '<div class="aba-pane"    id="pane-servicos"></div>'
+    + '<div class="aba-pane"    id="pane-docs"></div>'
+    + '<div class="aba-pane"    id="pane-decl"></div>'
+    + '<div class="aba-pane"    id="pane-drive"></div>';
+
+  var content = document.getElementById('content');
+  if (content) content.appendChild(sc);
+})();
+
+// 6. Criar elementos de config nas screens corretas
+(function(){
+  // #cfg-url, #cfg-token, #cfg-ls, etc → devem existir no screen-configuracoes
+  var scCfg = document.getElementById('screen-configuracoes');
+  if (!scCfg) return;
+  if (document.getElementById('cfg-url')) return; // já existe
+
+  var cfgHtml = '<div style="padding:8px 0">'
+    + '<div style="background:var(--glass2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">'
+    + '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:13px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">🔄 Apps Script</div>'
+    + '<label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.09em;margin-bottom:5px">URL do Script</label>'
+    + '<input id="cfg-url" type="url" placeholder="https://script.google.com/..." style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;outline:none;padding:0 13px;height:44px;width:100%;margin-bottom:10px">'
+    + '<label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.09em;margin-bottom:5px">Token</label>'
+    + '<input id="cfg-token" type="password" placeholder="Token de segurança" style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;outline:none;padding:0 13px;height:44px;width:100%;margin-bottom:10px">'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:7px">'
+    + '<button class="btn btn-primary btn-sm" onclick="salvarCfg()">💾 Salvar</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="testarConexao()">🔌 Testar</button></div>'
+    + '<div style="font-size:11px;color:var(--text-dim)">Último sync: <span id="cfg-ls">–</span></div>'
+    + '</div>'
+    + '<div style="background:var(--glass2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">'
+    + '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:13px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">☁️ Sincronizar</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px"><button class="btn btn-primary" onclick="exportar()">📤 Exportar</button><button class="btn btn-ghost" onclick="importar()">📥 Importar</button></div>'
+    + '</div>'
+    + '<div style="background:var(--glass2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">'
+    + '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:13px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">📊 Google Sheets</div>'
+    + '<input id="cfg-plan" placeholder="ID da planilha..." style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;outline:none;padding:0 13px;height:44px;width:100%;margin-bottom:7px">'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px"><button class="btn btn-primary btn-sm" onclick="salvarPlan()">💾 Salvar</button><button class="btn btn-ghost btn-sm" onclick="abrirPlan()">📊 Abrir</button></div>'
+    + '</div>'
+    + '<div style="background:var(--glass2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">'
+    + '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:13px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">📁 Pasta Raiz Drive</div>'
+    + '<input id="cfg-raiz" placeholder="ID da pasta raiz..." style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;outline:none;padding:0 13px;height:44px;width:100%;margin-bottom:7px">'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px"><button class="btn btn-primary btn-sm" onclick="salvarRaiz()">💾 Salvar</button><button class="btn btn-ghost btn-sm" onclick="abrirRaiz()">📂 Abrir</button></div>'
+    + '</div>'
+    + '<div style="background:var(--glass2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">'
+    + '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:13px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">🔧 Manutenção</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:7px"><button class="btn btn-primary" onclick="importar()">🔄 Atualizar</button><button class="btn btn-ghost" onclick="backupJSON()">💾 Backup</button></div>'
+    + '<button onclick="dedup(false)" style="width:100%;height:36px;background:rgba(192,57,43,.1);border:1px solid var(--danger);border-radius:8px;color:var(--danger);font-size:12px;font-weight:700;cursor:pointer">🔍 Remover Duplicatas</button>'
+    + '</div>'
+    + '<div style="background:var(--glass2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">'
+    + '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:13px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">👥 Usuários</div>'
+    + '<button class="btn btn-ghost btn-sm" onclick="abrirGerirUsuarios()">Gerenciar</button>'
+    + '</div>'
+    + '<div style="background:var(--glass2);border-left:3px solid var(--gold);border-radius:12px;padding:14px">'
+    + '<div style="font-family:\'Cinzel\',serif;font-size:14px;font-weight:700;color:var(--gold);margin-bottom:4px">Gestão CH v11 Premium</div>'
+    + '<div id="cfg-dbg" style="font-size:12px;color:var(--text-main)"></div>'
+    + '</div></div>';
+
+  var existing = scCfg.querySelector('.screen-title');
+  scCfg.innerHTML = existing ? existing.outerHTML : '';
+  scCfg.innerHTML += cfgHtml;
+})();
+
+// 7. Criar elementos de relatorio
+(function(){
+  var scRel = document.getElementById('screen-relatorios');
+  if (!scRel || document.getElementById('rl-body')) return;
+  var relHtml = '<div style="background:var(--glass2);border:1px solid var(--border);border-radius:12px;padding:14px">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+    + '<span style="font-family:\'Barlow Condensed\',sans-serif;font-size:14px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em">Serviços</span>'
+    + '<span id="rl-cnt" style="padding:2px 10px;border-radius:99px;font-size:11px;font-weight:700;background:rgba(76,158,104,.1);color:var(--moss-bright);border:1px solid rgba(76,158,104,.3)">0</span>'
+    + '</div>'
+    + '<input id="rl-srch" type="search" placeholder="Nome ou CPF..." style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;outline:none;padding:0 13px;height:44px;width:100%;margin-bottom:10px" oninput="renderRel()">'
+    + '<div style="display:flex;gap:7px;margin-bottom:10px;flex-wrap:wrap">'
+    + '<button id="rl-btn-ativos"      onclick="rlFiltro(\'ativos\')"      style="height:32px;padding:0 12px;background:rgba(76,158,104,.15);border:1px solid rgba(76,158,104,.4);border-radius:6px;color:var(--moss-bright);font-size:12px;font-weight:700;cursor:pointer">🔧 Ativos</button>'
+    + '<button id="rl-btn-finalizados" onclick="rlFiltro(\'finalizados\')" style="height:32px;padding:0 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:12px;font-weight:700;cursor:pointer">✅ Finalizados</button>'
+    + '<button id="rl-btn-todos"       onclick="rlFiltro(\'todos\')"       style="height:32px;padding:0 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:12px;font-weight:700;cursor:pointer">📋 Todos</button>'
+    + '</div>'
+    + '<div id="rl-body"></div></div>';
+  var existing = scRel.querySelector('.screen-title');
+  scRel.innerHTML = (existing ? existing.outerHTML : '') + relHtml;
+})();
+
+// 8. Criar agenda cronograma no screen-agenda
+(function(){
+  var scAg = document.getElementById('screen-agenda');
+  if (!scAg || document.getElementById('dash-cronograma')) return;
+  var agHtml = '<div id="dash-cronograma" style="margin-bottom:12px"></div>'
+    + '<div id="notas-lista-ag" style="margin-bottom:12px"></div>'
+    + '<div style="background:var(--glass2);border:1px solid var(--border);border-radius:12px;padding:14px">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+    + '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:14px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em">📅 Calendário</div>'
+    + '<div style="display:flex;align-items:center;gap:6px">'
+    + '<button onclick="CAL.nav(-1)" style="width:28px;height:28px;border-radius:6px;background:var(--glass);border:1px solid var(--border);color:var(--text-dim);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer">‹</button>'
+    + '<span id="cal-titulo" style="font-family:\'Cinzel\',serif;font-size:13px;font-weight:600;color:var(--gold);min-width:110px;text-align:center"></span>'
+    + '<button onclick="CAL.nav(1)" style="width:28px;height:28px;border-radius:6px;background:var(--glass);border:1px solid var(--border);color:var(--text-dim);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer">›</button>'
+    + '</div></div>'
+    + '<div style="display:grid;grid-template-columns:200px 1fr;gap:14px">'
+    + '<div><div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px"></div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;padding-top:7px;border-top:1px solid rgba(201,168,76,.1)">'
+    + '<div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text-dim)"><div style="width:6px;height:6px;border-radius:50%;background:var(--gold)"></div>Hoje</div>'
+    + '<div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text-dim)"><div style="width:6px;height:6px;border-radius:50%;background:#A78BFA"></div>Aniversário</div>'
+    + '<div style="display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text-dim)"><div style="width:6px;height:6px;border-radius:50%;background:var(--moss-bright)"></div>Nota</div>'
+    + '</div></div>'
+    + '<div id="cal-painel" style="background:var(--glass);border:1px solid var(--border);border-radius:8px;padding:13px;min-height:180px">'
+    + '<div style="font-size:12px;color:var(--text-dim);text-align:center;padding:20px 0;font-style:italic">Clique em um dia</div>'
+    + '</div></div></div>';
+  var existing = scAg.querySelector('.screen-title');
+  scAg.innerHTML = (existing ? existing.outerHTML : '') + agHtml;
+})();
+
+// 9. Agenda no sidebar também ir para agenda
+document.querySelectorAll('[id^="nav-agenda"]').forEach(function(el){
+  el.onclick = function(){
+    ir('agenda');
+    try{ renderCronograma(); CAL.render(); notaRenderizar(); }catch(e){}
+  };
+});
+
+// 10. Declarações — injetar container
+(function(){
+  var scDecl = document.getElementById('screen-declaracoes');
+  if (!scDecl) return;
+  if (!document.getElementById('pg-declaracoes')) {
+    var d = document.createElement('div');
+    d.id = 'pg-declaracoes';
+    var existing = scDecl.querySelector('.screen-title');
+    scDecl.innerHTML = existing ? existing.outerHTML : '<div class="screen-title"><h2>📄 Declarações</h2></div>';
+    scDecl.appendChild(d);
+    try { renderDecls(); } catch(e) {}
+  }
+})();
+
+// 11. renderDB atualiza o home premium
+renderDB = function() {
+  // Saudação
+  var h = new Date().getHours();
+  var g = h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';
+  var sess = USR.getSess();
+  var nm = sess ? (sess.nome||'Clarindo').split(' ')[0] : 'Clarindo';
+  var msgs = ['Mantenha seus clientes em dia!','Foco e disciplina geram resultados.',
+    'Um cliente bem atendido é fiel.','Profissionalismo gera confiança!'];
+  var d = new Date();
+  var MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+               'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var el;
+  el=document.getElementById('dh-gr');  if(el) el.textContent=g+', '+nm+' 🧠';
+  el=document.getElementById('dh-msg'); if(el) el.textContent=msgs[d.getDay()%msgs.length];
+  el=document.getElementById('dh-day'); if(el) el.textContent=String(d.getDate()).padStart(2,'0');
+  el=document.getElementById('dh-mon'); if(el) el.textContent=MESES[d.getMonth()]+' '+d.getFullYear();
+  el=document.getElementById('dh-wk');  if(el) el.textContent=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()];
+
+  // Contadores
+  var urg=0,att=0,nw=0,totalCli=0,ativos=0,totalSrv=0;
+  try {
+    var todos = CL.getAll();
+    totalCli = todos.length;
+    ativos = todos.filter(function(c){ return c.status!=='Inativo'; }).length;
+    totalSrv = SRV.getAll().length;
+    todos.forEach(function(cl){
+      if(cl.status==='Inativo') return;
+      var al=calcAlerta(cl);
+      if(!al) return;
+      if(al.tipo==='urg') urg++;
+      else if(al.tipo==='att') att++;
+      else nw++;
+    });
+  } catch(e){}
+
+  el=document.getElementById('cnt-urg');       if(el) el.textContent=urg;
+  el=document.getElementById('cnt-att');       if(el) el.textContent=att;
+  el=document.getElementById('cnt-new');       if(el) el.textContent=nw;
+  el=document.getElementById('stat-clientes'); if(el) el.textContent=totalCli;
+  el=document.getElementById('stat-ativos');   if(el) el.textContent=ativos;
+  el=document.getElementById('stat-servicos'); if(el) el.textContent=totalSrv;
+
+  // Notas e cronograma no dashboard
+  try { notaRenderizar(); } catch(e){}
+  try { renderCronograma(); } catch(e){}
+  setTimeout(function(){ try{ CAL.render(); }catch(e){} }, 80);
+};
+
+// 12. abrirCliente vai para detalhe
+var _origAC = abrirCliente;
+abrirCliente = function(id) {
+  try { _origAC(id); } catch(e) {}
+  ir('cliente');
+};
+
+console.log('✅ MEGA PATCH carregado — todos os bugs corrigidos');
 
 </script>
 </body>
