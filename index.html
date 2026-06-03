@@ -7356,6 +7356,315 @@ abrirCliente = function(id) {
 
 console.log('✅ MEGA PATCH carregado — todos os bugs corrigidos');
 
+
+// ════════════════════════════════════════════════════════════
+//  PATCH — Excluir Cliente + Anotar no Dia + Agenda Eventos
+// ════════════════════════════════════════════════════════════
+
+// ── 1. EXCLUIR CLIENTE ───────────────────────────────────────
+function excluirCliente(id) {
+  var cl = CL.get(id); if (!cl) return;
+  if (!confirm('Excluir cliente "' + cl.nome + '"?\n\nIsso removerá também os serviços associados.')) return;
+  // Remover serviços
+  var srvs = SRV.getByCliente(id) || [];
+  srvs.forEach(function(s){ try{ CL.delete && SRV.delete(s.id); }catch(e){} });
+  // Remover cliente
+  CL.delete(id);
+  APP.toast('Cliente removido', 'info', 3000);
+  try { renderClis(); } catch(e){}
+  try { renderDB(); } catch(e){}
+  // Se estava no detalhe, voltar
+  if (STATE.clienteId === id) {
+    STATE.clienteId = null;
+    ir('clientes');
+  }
+}
+
+// ── 2. SOBRESCREVER renderClis — adicionar botão excluir ──────
+var _origRC = renderClis;
+renderClis = function() {
+  _origRC();
+  // Adicionar botão excluir a cada card
+  var lista = document.getElementById('cl-lista');
+  if (!lista) return;
+  lista.querySelectorAll('[data-cli-id]').forEach(function(card) {
+    var id = card.getAttribute('data-cli-id');
+    if (!id || card.querySelector('.btn-excluir-cli')) return;
+    var btn = document.createElement('button');
+    btn.className = 'btn-excluir-cli';
+    btn.title = 'Excluir cliente';
+    btn.style.cssText = 'position:absolute;top:8px;right:8px;width:26px;height:26px;'
+      + 'background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.3);'
+      + 'border-radius:6px;color:var(--danger);font-size:12px;cursor:pointer;'
+      + 'display:flex;align-items:center;justify-content:center;z-index:2';
+    btn.innerHTML = '🗑️';
+    btn.onclick = function(e) {
+      e.stopPropagation();
+      excluirCliente(id);
+    };
+    card.style.position = 'relative';
+    card.appendChild(btn);
+  });
+};
+
+// ── 3. ANOTAR NO DIA — cal-painel com botão anotar ───────────
+// Sobrescrever o CAL.renderPainel para ter botão funcional
+var _origCALclick = CAL.clickDia;
+CAL.clickDia = function(ds) {
+  CAL.sel = ds;
+  var painel = G('cal-painel'); if (!painel) return;
+  var notas  = CAL.notas();
+  var bloqs  = CAL.bloqs();
+  var notasDia = notas[ds] || [];
+  var bloqDia  = bloqs.indexOf(ds) >= 0;
+
+  // Formatar data
+  var p = ds.split('-');
+  var DIAS_N  = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  var MESES_N = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var dt = new Date(+p[0], +p[1]-1, +p[2]);
+  var dataFmt = DIAS_N[dt.getDay()] + ', ' + p[2] + ' ' + MESES_N[+p[1]-1] + ' ' + p[0];
+
+  // Aniversários
+  var anivs = CL.getAll().filter(function(cl) {
+    if (!cl.nascimento) return false;
+    var pa = cl.nascimento.split('/');
+    return pa.length >= 2 && pa[0] === p[2] && pa[1] === p[1];
+  });
+
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;flex-direction:column;height:100%;gap:8px';
+
+  // Header
+  var hdr = document.createElement('div');
+  hdr.style.cssText = 'font-family:\'Barlow Condensed\',sans-serif;font-size:14px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;padding-bottom:8px;border-bottom:1px solid rgba(201,168,76,.15)';
+  hdr.textContent = dataFmt;
+  wrap.appendChild(hdr);
+
+  // Aniversários
+  if (anivs.length) {
+    anivs.forEach(function(cl) {
+      var av = document.createElement('div');
+      av.style.cssText = 'display:flex;align-items:center;gap:7px;padding:5px 8px;background:rgba(167,139,250,.1);border-radius:6px;font-size:12px;color:#A78BFA;cursor:pointer';
+      av.innerHTML = '<span>🎂</span><span>' + E(cl.nome.split(' ')[0]) + ' — Aniversário</span>';
+      av.onclick = function(){ abrirCliente(cl.id); };
+      wrap.appendChild(av);
+    });
+  }
+
+  // Bloqueado
+  if (bloqDia) {
+    var bl = document.createElement('div');
+    bl.style.cssText = 'padding:5px 8px;background:rgba(192,57,43,.1);border-radius:6px;font-size:11px;color:var(--danger)';
+    bl.textContent = '🚫 Dia bloqueado';
+    wrap.appendChild(bl);
+  }
+
+  // Notas do dia
+  var notasDiv = document.createElement('div');
+  notasDiv.style.cssText = 'flex:1;overflow-y:auto';
+  if (!notasDia.length && !anivs.length && !bloqDia) {
+    notasDiv.innerHTML = '<div style="font-size:11px;color:var(--text-dim);text-align:center;padding:12px 0;font-style:italic">Nenhum evento neste dia</div>';
+  } else {
+    notasDia.forEach(function(n, i) {
+      var nd = document.createElement('div');
+      nd.style.cssText = 'display:flex;align-items:flex-start;gap:7px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)';
+      nd.innerHTML = '<div style="width:3px;flex-shrink:0;border-radius:2px;background:var(--moss-bright);align-self:stretch"></div>'
+        + '<div style="flex:1;font-size:12px;color:var(--text-main)">' + E(n.t || n) + '</div>'
+        + '<button onclick="CAL.removerNota(\'' + ds + '\',' + i + ')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0 2px">×</button>';
+      notasDiv.appendChild(nd);
+    });
+  }
+  wrap.appendChild(notasDiv);
+
+  // Área de adicionar nota/evento
+  var addArea = document.createElement('div');
+  addArea.style.cssText = 'border-top:1px solid rgba(201,168,76,.15);padding-top:8px';
+  
+  var inp = document.createElement('input');
+  inp.type = 'text';
+  inp.placeholder = 'Adicionar nota ou evento...';
+  inp.style.cssText = 'width:100%;height:36px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:6px;color:#fff;font-size:12px;outline:none;padding:0 10px;margin-bottom:6px;font-family:inherit';
+  
+  var btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:6px';
+  
+  var btnNota = document.createElement('button');
+  btnNota.textContent = '📝 Anotar';
+  btnNota.style.cssText = 'flex:1;height:32px;background:linear-gradient(135deg,var(--moss),var(--navy-light));border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:700;cursor:pointer';
+  btnNota.onclick = function() {
+    var txt = inp.value.trim();
+    if (!txt) return;
+    var notas2 = CAL.notas();
+    if (!notas2[ds]) notas2[ds] = [];
+    notas2[ds].push({ t:txt });
+    localStorage.setItem(CAL.NK, JSON.stringify(notas2));
+    inp.value = '';
+    CAL.render();
+    CAL.clickDia(ds);
+    APP.toast('Nota adicionada ✓', 'success', 2000);
+  };
+  
+  inp.addEventListener('keydown', function(e){
+    if (e.key === 'Enter') btnNota.click();
+  });
+  
+  var btnBlq = document.createElement('button');
+  btnBlq.textContent = bloqDia ? '🔓 Liberar' : '🚫 Bloquear';
+  btnBlq.style.cssText = 'height:32px;padding:0 10px;background:' + (bloqDia ? 'rgba(76,158,104,.15)' : 'rgba(192,57,43,.15)') + ';border:1px solid ' + (bloqDia ? 'rgba(76,158,104,.4)' : 'rgba(192,57,43,.4)') + ';border-radius:6px;color:' + (bloqDia ? 'var(--moss-bright)' : 'var(--danger)') + ';font-size:11px;font-weight:700;cursor:pointer';
+  btnBlq.onclick = function() {
+    var bl2 = CAL.bloqs();
+    var idx2 = bl2.indexOf(ds);
+    if (idx2 >= 0) bl2.splice(idx2,1); else bl2.push(ds);
+    localStorage.setItem(CAL.BK, JSON.stringify(bl2));
+    CAL.render();
+    CAL.clickDia(ds);
+  };
+  
+  btnRow.appendChild(btnNota);
+  btnRow.appendChild(btnBlq);
+  addArea.appendChild(inp);
+  addArea.appendChild(btnRow);
+  wrap.appendChild(addArea);
+
+  painel.innerHTML = '';
+  painel.appendChild(wrap);
+  try { setTimeout(function(){ inp.focus(); }, 100); } catch(e){}
+};
+
+// removerNota
+CAL.removerNota = function(ds, idx) {
+  var notas = CAL.notas();
+  if (notas[ds]) {
+    notas[ds].splice(idx, 1);
+    if (!notas[ds].length) delete notas[ds];
+    localStorage.setItem(CAL.NK, JSON.stringify(notas));
+    CAL.render();
+    CAL.clickDia(ds);
+  }
+};
+
+// ── 4. AGENDA — próximos eventos reais ───────────────────────
+function renderAgendaEventos() {
+  // Eventos = notas do calendário (próximos 14 dias)
+  var notas = CAL.notas();
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  
+  // Aniversários próximos
+  var anivs = [];
+  CL.getAll().forEach(function(cl) {
+    if (!cl.nascimento) return;
+    var p = cl.nascimento.split('/');
+    if (p.length < 2) return;
+    var d = new Date(hoje.getFullYear(), +p[1]-1, +p[0]);
+    if (d < hoje) d.setFullYear(d.getFullYear() + 1);
+    var diff = Math.floor((d - hoje) / 86400000);
+    if (diff <= 30) anivs.push({ cl:cl, data:d, diff:diff, tipo:'aniv' });
+  });
+
+  // Notas dos próximos 30 dias
+  var eventos = [];
+  for (var i = 0; i <= 30; i++) {
+    var d = new Date(hoje.getTime() + i * 86400000);
+    var ds = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    if (notas[ds]) {
+      notas[ds].forEach(function(n) {
+        eventos.push({ ds:ds, data:d, txt:n.t||n, diff:i });
+      });
+    }
+  }
+
+  // Combinar e ordenar
+  var todos = eventos.concat(anivs).sort(function(a,b){ return a.diff - b.diff; });
+
+  // Renderizar na screen de agenda
+  var scAg = document.getElementById('screen-agenda');
+  if (!scAg) return;
+
+  var DIAS_N  = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  var MESES_N = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  var evEl = document.getElementById('agenda-events-list');
+  if (!evEl) {
+    // Criar container de eventos
+    evEl = document.createElement('div');
+    evEl.id = 'agenda-events-list';
+    evEl.style.cssText = 'background:var(--glass2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px';
+    var dash = document.getElementById('dash-cronograma');
+    if (dash && dash.parentNode === scAg) {
+      scAg.insertBefore(evEl, dash);
+    } else {
+      scAg.insertBefore(evEl, scAg.querySelector('.screen-title').nextSibling);
+    }
+  }
+
+  if (!todos.length) {
+    evEl.innerHTML = '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:13px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">📅 Próximos 30 dias</div>'
+      + '<div style="text-align:center;padding:20px;font-size:12px;color:var(--text-dim);font-style:italic">Nenhum evento agendado.<br>Clique em um dia no calendário para adicionar.</div>';
+    return;
+  }
+
+  var h = '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:13px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">📅 Próximos Eventos</div>';
+
+  todos.slice(0,15).forEach(function(ev) {
+    var d = ev.data;
+    var diasLabel = ev.diff === 0 ? 'HOJE' : ev.diff === 1 ? 'AMANHÃ' : 'em ' + ev.diff + 'd';
+    var cor = ev.diff === 0 ? 'var(--gold)' : ev.diff <= 3 ? 'var(--moss-bright)' : 'var(--text-dim)';
+    var bordCor = ev.diff === 0 ? 'var(--danger)' : ev.diff <= 3 ? 'var(--moss-bright)' : 'var(--border)';
+    
+    if (ev.tipo === 'aniv') {
+      h += '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04)">'
+        + '<div style="border-left:3px solid #A78BFA;padding-left:8px">'
+        + '<div style="font-size:10px;font-weight:700;color:#A78BFA;text-transform:uppercase">' + diasLabel + ' · ' + DIAS_N[d.getDay()] + ' ' + d.getDate() + ' ' + MESES_N[d.getMonth()] + '</div>'
+        + '<div style="font-size:13px;color:var(--text-main);margin-top:2px">🎂 ' + E(ev.cl.nome) + '</div>'
+        + '</div>'
+        + '<button onclick="abrirCliente(\'' + ev.cl.id + '\')" style="margin-left:auto;height:26px;padding:0 8px;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);border-radius:5px;color:#A78BFA;font-size:10px;font-weight:700;cursor:pointer">Ver →</button>'
+        + '</div>';
+    } else {
+      h += '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04)">'
+        + '<div style="border-left:3px solid ' + bordCor + ';padding-left:8px">'
+        + '<div style="font-size:10px;font-weight:700;color:' + cor + ';text-transform:uppercase">' + diasLabel + ' · ' + DIAS_N[d.getDay()] + ' ' + d.getDate() + ' ' + MESES_N[d.getMonth()] + '</div>'
+        + '<div style="font-size:13px;color:var(--text-main);margin-top:2px">' + E(ev.txt) + '</div>'
+        + '</div>'
+        + '</div>';
+    }
+  });
+
+  evEl.innerHTML = h;
+}
+
+// Chamar ao ir para agenda
+var _origIrAgenda = ir;
+ir = function(pg) {
+  _origIrAgenda(pg);
+  if (pg === 'agenda') {
+    setTimeout(function(){
+      try { renderAgendaEventos(); } catch(e){}
+      try { renderCronograma(); } catch(e){}
+      try { CAL.render(); } catch(e){}
+    }, 100);
+  }
+};
+
+// ── 5. executarExcluir — corrigir para usar ir() em vez de navTo ─
+executarExcluir = function() {
+  var id = STATE.clienteId || STATE._delId;
+  var cl = id ? CL.get(id) : null;
+  if (cl) {
+    CL.delete(id);
+    var srvs = SRV.getByCliente ? SRV.getByCliente(id) : [];
+    srvs.forEach(function(s){ try{ SRV.delete(s.id); }catch(e){}});
+    STATE.clienteId = null;
+  }
+  MODAL.close('modal-del');
+  APP.toast('Removido ✓', 'info', 2500);
+  try { renderClis(); } catch(e) {}
+  try { renderDB(); } catch(e) {}
+  ir('clientes');
+};
+
+console.log('✅ Patch excluir/anotar/agenda carregado');
+
 </script>
 </body>
 </html>
