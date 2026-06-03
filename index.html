@@ -7665,6 +7665,232 @@ executarExcluir = function() {
 
 console.log('✅ Patch excluir/anotar/agenda carregado');
 
+
+// ════════════════════════════════════════════════════════════
+//  PATCH FINAL — Agenda real + Serviços + Sync button
+// ════════════════════════════════════════════════════════════
+
+// ── 1. AGENDA PREVIEW — eventos reais do dia ─────────────────
+function renderAgendaPreview() {
+  var el = document.getElementById('agenda-preview');
+  if (!el) return;
+
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  var ds = hoje.getFullYear() + '-'
+    + String(hoje.getMonth()+1).padStart(2,'0') + '-'
+    + String(hoje.getDate()).padStart(2,'0');
+
+  var notas  = CAL.notas()[ds] || [];
+  var anivs  = CL.getAll().filter(function(cl){
+    if (!cl.nascimento) return false;
+    var p = cl.nascimento.split('/');
+    return p.length >= 2 && p[0] === ds.split('-')[2] && p[1] === ds.split('-')[1];
+  });
+
+  var MESES_ABR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var label = '<span class="ap-label">📅 ' + hoje.getDate() + ' ' + MESES_ABR[hoje.getMonth()] + '</span>';
+
+  var items = '';
+  anivs.forEach(function(cl){
+    items += '<div class="ap-item" onclick="abrirCliente(\'' + cl.id + '\')" style="color:#A78BFA">🎂 ' + E(cl.nome.split(' ')[0]) + ' — Aniversário</div>';
+  });
+
+  if (!notas.length && !anivs.length) {
+    items += '<div class="ap-item" style="color:var(--text-dim);cursor:pointer" onclick="ir(\'agenda\')">Sem eventos hoje — clique para adicionar</div>';
+  } else {
+    notas.slice(0, 3).forEach(function(n){
+      var txt = n.t || n;
+      items += '<div class="ap-item" onclick="ir(\'agenda\')" style="cursor:pointer">📝 ' + E(txt) + '</div>';
+    });
+    if (notas.length > 3) {
+      items += '<div class="ap-item" onclick="ir(\'agenda\')" style="color:var(--text-dim)">+ ' + (notas.length-3) + ' mais...</div>';
+    }
+  }
+
+  // Botão adicionar evento
+  items += '<button onclick="_abrirModalEvento()" style="height:26px;padding:0 10px;background:rgba(201,168,76,.15);border:1px solid var(--border);border-radius:5px;color:var(--gold);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">+ Evento</button>';
+
+  el.innerHTML = label + items;
+}
+
+// Modal rápido para adicionar evento/aviso no dia
+function _abrirModalEvento() {
+  var hoje = new Date();
+  var ds = hoje.getFullYear() + '-'
+    + String(hoje.getMonth()+1).padStart(2,'0') + '-'
+    + String(hoje.getDate()).padStart(2,'0');
+
+  var mc = document.getElementById('modal-obs-t');
+  if (mc) mc.textContent = '📅 Adicionar Evento/Aviso';
+
+  var ta = document.getElementById('modal-obs-inp');
+  if (ta) { ta.value = ''; ta.placeholder = 'Ex: Ligar para João às 14h, Entregar doc CRAF...'; }
+
+  var btn = document.getElementById('modal-obs-save');
+  if (btn) {
+    btn.textContent = '✅ Salvar Evento';
+    btn.onclick = function() {
+      var txt = ta ? ta.value.trim() : '';
+      if (!txt) { APP.toast('Digite o texto do evento','warn'); return; }
+      var notas2 = CAL.notas();
+      if (!notas2[ds]) notas2[ds] = [];
+      notas2[ds].push({ t: txt });
+      localStorage.setItem(CAL.NK, JSON.stringify(notas2));
+      MODAL.close('modal-obs');
+      renderAgendaPreview();
+      APP.toast('✅ Evento salvo!', 'success', 2500);
+    };
+  }
+  MODAL.open('modal-obs');
+  setTimeout(function(){ var ta2=document.getElementById('modal-obs-inp'); if(ta2) ta2.focus(); }, 200);
+}
+
+// Chamar renderAgendaPreview ao iniciar e ao voltar ao dashboard
+setTimeout(renderAgendaPreview, 1000);
+setInterval(renderAgendaPreview, 60000); // atualizar a cada minuto
+
+// ── 2. BOTÃO SYNC/ATUALIZAR NO TOPBAR ────────────────────────
+(function(){
+  var tb = document.getElementById('topbar');
+  if (!tb || document.getElementById('btn-sync-top')) return;
+
+  var btns = document.createElement('div');
+  btns.style.cssText = 'display:flex;align-items:center;gap:8px;margin-left:auto';
+
+  var btnSync = document.createElement('button');
+  btnSync.id = 'btn-sync-top';
+  btnSync.innerHTML = '🔄 Sincronizar';
+  btnSync.style.cssText = 'height:32px;padding:0 14px;background:linear-gradient(135deg,var(--moss),var(--navy-light));border:1px solid var(--moss-bright);border-radius:6px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap';
+  btnSync.onclick = function() {
+    btnSync.textContent = '⏳ Salvando...';
+    btnSync.disabled = true;
+    exportar();
+    setTimeout(function(){
+      btnSync.innerHTML = '🔄 Sincronizar';
+      btnSync.disabled = false;
+      renderAgendaPreview();
+    }, 3500);
+  };
+
+  var btnAtualizar = document.createElement('button');
+  btnAtualizar.innerHTML = '↻ Atualizar';
+  btnAtualizar.style.cssText = 'height:32px;padding:0 12px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap';
+  btnAtualizar.onclick = function() {
+    importar();
+    setTimeout(function(){
+      try{ renderDB(); renderClis(); renderAgendaPreview(); }catch(e){}
+      APP.toast('↻ Dados atualizados','info',2500);
+    }, 1500);
+  };
+
+  var obEl = document.getElementById('ob');
+  if (obEl) {
+    tb.insertBefore(btns, obEl);
+  } else {
+    tb.appendChild(btns);
+  }
+  btns.appendChild(btnAtualizar);
+  btns.appendChild(btnSync);
+})();
+
+// ── 3. SERVIÇOS — excluir funcionando + paneSrv corrigido ────
+// Garantir SRV.delete existe
+if (!SRV.delete) {
+  SRV.delete = function(id) {
+    var lista = DB.get('servicos').filter(function(s){ return s.id !== id; });
+    DB.set('servicos', lista);
+    if (SYNC._pending) SYNC._pending['servicos'] = true;
+  };
+}
+
+// Sobrescrever excluirServico para funcionar corretamente
+excluirServico = function(id) {
+  var s = SRV.get ? SRV.get(id) : null;
+  var nome = s ? (s.tipo || 'serviço') : 'serviço';
+  if (!confirm('Excluir o serviço "' + nome + '"?\nEsta ação não pode ser desfeita.')) return;
+
+  // Excluir do localStorage
+  SRV.delete(id);
+
+  // Sincronizar em background
+  if (SYNC._pending) SYNC._pending['servicos'] = true;
+  setTimeout(function(){
+    try { _syncSalvar(); } catch(e){}
+  }, 500);
+
+  APP.toast('Serviço excluído ✓', 'info', 2500);
+  try { paneSrv(); } catch(e){}
+  try { renderDB(); } catch(e){}
+};
+
+// ── 4. paneSrv REESCRITA — serviços com excluir + visto ──────
+paneSrv = function() {
+  var el = APP.$('pane-servicos'); if (!el || el._isFake) return;
+  var srvs = (SRV && SRV.getByCliente ? SRV.getByCliente(STATE.clienteId) : []) || [];
+  var TN = typeof TIPOS_SRV !== 'undefined' ? TIPOS_SRV : {};
+  var COR_STATUS = {
+    'Pendente Cliente':'#E0A030','Pendente Sistema':'#E0A030',
+    'Pronto para Análise':'var(--navy-light)','Em Análise':'var(--navy-light)',
+    'Deferido':'var(--moss-bright)','Indeferido':'var(--danger)','Cancelado':'var(--text-dim)'
+  };
+
+  var h = '<button onclick="abrirNovoServico()" style="width:100%;height:44px;background:linear-gradient(135deg,var(--moss),var(--navy-light));border:1px solid var(--moss-bright);border-radius:8px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px">➕ Novo Serviço</button>';
+
+  if (!srvs.length) {
+    h += '<div style="text-align:center;padding:30px;color:var(--text-dim)">'
+      + '<div style="font-size:32px;margin-bottom:8px">🔧</div>'
+      + '<div style="font-size:14px;color:var(--text-main)">Nenhum serviço cadastrado</div>'
+      + '<div style="font-size:12px;margin-top:6px">Clique em "Novo Serviço" para iniciar um processo</div></div>';
+  } else {
+    srvs.forEach(function(s) {
+      var docs = (typeof DOCS_SRV !== 'undefined' ? DOCS_SRV[s.tipo] : null) || [];
+      var km = 'gch10_d_' + STATE.clienteId + '_' + s.tipo;
+      var saved = {}; try { saved = JSON.parse(localStorage.getItem(km)||'{}'); } catch(e){}
+      var marc = Object.keys(saved).filter(function(k){ return saved[k]; }).length;
+      var pct  = docs.length ? Math.round(marc/docs.length*100) : 0;
+      var nome = TN[s.tipo] || s.tipo || 'Serviço';
+      var cor  = COR_STATUS[s.status] || 'var(--text-dim)';
+      var visto = s.ultimo_visto ? s.ultimo_visto.split(' ')[0] : null;
+
+      h += '<div style="background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden">';
+
+      // Header
+      h += '<div style="display:flex;align-items:center;gap:10px;padding:12px 13px">'
+        + '<div style="width:42px;height:42px;border-radius:8px;background:rgba(201,168,76,.08);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:var(--gold);flex-shrink:0">' + E((s.tipo||'').substring(0,4)) + '</div>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:14px;font-weight:800;color:#fff">' + E(nome) + '</div>'
+        + '<div style="display:flex;gap:5px;margin-top:3px;flex-wrap:wrap;align-items:center">'
+        + (s.protocolo ? '<span style="font-size:10px;color:var(--text-dim)">' + E(s.protocolo) + '</span>' : '')
+        + '<span style="padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700;color:' + cor + ';background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08)">' + E(s.status||'') + '</span>'
+        + (visto ? '<span style="font-size:10px;color:var(--text-dim)">👁️ ' + visto + '</span>' : '<span style="font-size:10px;color:var(--danger)">👁️ Nunca visto</span>')
+        + '</div></div>'
+        + '<div style="display:flex;gap:5px;flex-shrink:0">'
+        + '<button onclick="vistoServico(\'' + s.id + '\')" style="height:32px;padding:0 9px;background:rgba(76,158,104,.15);border:1px solid rgba(76,158,104,.3);border-radius:6px;color:var(--moss-bright);font-size:11px;font-weight:700;cursor:pointer" title="Marcar como visto">👁️</button>'
+        + '<button onclick="abrirSrv(\'' + s.id + '\')" style="height:32px;padding:0 9px;background:rgba(201,168,76,.1);border:1px solid var(--border);border-radius:6px;color:var(--gold);font-size:11px;cursor:pointer">✏️</button>'
+        + '<button onclick="excluirServico(\'' + s.id + '\')" style="height:32px;padding:0 9px;background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.3);border-radius:6px;color:var(--danger);font-size:11px;cursor:pointer">🗑️</button>'
+        + '</div></div>';
+
+      // Barra de documentos (se tem)
+      if (docs.length) {
+        h += '<div style="padding:0 13px 10px">'
+          + '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+          + '<span style="font-size:10px;color:var(--text-dim)">Documentos</span>'
+          + '<span style="font-size:10px;font-weight:700;color:' + (pct===100?'var(--moss-bright)':'var(--text-dim)') + '">' + marc + '/' + docs.length + '</span>'
+          + '</div>'
+          + '<div style="height:5px;background:rgba(0,0,0,.3);border-radius:3px;overflow:hidden">'
+          + '<div style="height:100%;width:' + pct + '%;background:' + (pct===100?'var(--moss-bright)':'var(--navy-light)') + ';border-radius:3px;transition:.3s"></div>'
+          + '</div></div>';
+      }
+
+      h += '</div>';
+    });
+  }
+
+  el.innerHTML = h;
+};
+
+console.log('✅ Patch agenda/sync/serviços carregado');
+
 </script>
 </body>
 </html>
