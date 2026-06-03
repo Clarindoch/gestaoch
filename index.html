@@ -4646,6 +4646,322 @@ paneDecl = function() {
 
 
 
+
+// ════════════════════════════════════════════════════════════
+//  PATCH — Status visual + PDF das declarações
+// ════════════════════════════════════════════════════════════
+
+// ── Calcular status visual do cliente (bolinha) ──────────────
+function statusVisual(cl) {
+  if (!cl) return { cor:'#5C8AA8', ic:'⚪', label:'Sem dados' };
+  var al = calcAlerta(cl);
+  if (!al) return { cor:'#4EAA70', ic:'🟢', label:'Em dia' };
+  if (al.tipo === 'urg') return { cor:'#E05454', ic:'🔴', label:'Urgente — '+al.label };
+  if (al.tipo === 'att') return { cor:'#E0A030', ic:'🟡', label:'Atenção — '+al.label };
+  return { cor:'#4A7BC4', ic:'🔵', label:'Verificar — '+al.label };
+}
+
+// ── Marcar visto ao ABRIR o cliente ─────────────────────────
+var _origAbrirCliente = abrirCliente;
+abrirCliente = function(id) {
+  _origAbrirCliente(id);
+  // Registrar visto em todos os serviços ativos do cliente
+  setTimeout(function(){
+    try {
+      var srvs = (SRV.getByCliente(id)||[]).filter(function(s){
+        return s.status !== 'Deferido' && s.status !== 'Indeferido' && s.status !== 'Cancelado';
+      });
+      if (srvs.length) {
+        var agora = new Date().toLocaleString('pt-BR');
+        srvs.forEach(function(s){
+          s.ultimo_visto = agora;
+          SRV.save(s);
+        });
+        // Atualizar header do cliente
+        _atualizarStatusHeader(id);
+        try { renderCronograma(); } catch(e) {}
+        try { renderDB(); } catch(e) {}
+      }
+    } catch(e) {}
+  }, 800);
+};
+
+// ── Atualizar bolinha de status no header do cliente ─────────
+function _atualizarStatusHeader(id) {
+  var cl = CL.get(id); if (!cl) return;
+  var sv = statusVisual(cl);
+  var el = G('cli-status-dot');
+  if (el) {
+    el.style.background = sv.cor;
+    el.title = sv.label;
+  }
+  // Atualizar a lista de clientes também
+  try { renderClis(); } catch(e) {}
+}
+
+// ── Melhorar abrirCliente para mostrar bolinha no header ─────
+var _origOpenCli = openCliente;
+openCliente = function(id) {
+  if (_origOpenCli) _origOpenCli(id);
+  setTimeout(function(){
+    // Adicionar bolinha de status ao header do cliente
+    var metaEl = G('cli-meta');
+    if (metaEl && !G('cli-status-dot')) {
+      var cl = CL.get(id); if (!cl) return;
+      var sv = statusVisual(cl);
+      var dot = document.createElement('div');
+      dot.id = 'cli-status-dot';
+      dot.title = sv.label;
+      dot.style.cssText = 'width:12px;height:12px;border-radius:50%;background:'+sv.cor
+        +';flex-shrink:0;cursor:default;transition:.3s;box-shadow:0 0 6px '+sv.cor+'88';
+      metaEl.insertBefore(dot, metaEl.firstChild);
+    }
+  }, 300);
+};
+
+// ── Bolinha na lista de clientes ─────────────────────────────
+var _origRenderClis = renderClis;
+renderClis = function() {
+  _origRenderClis();
+  // Adicionar bolinhas após render
+  setTimeout(function(){
+    try {
+      document.querySelectorAll('[data-cli-id]').forEach(function(card){
+        var id = card.getAttribute('data-cli-id');
+        var cl = CL.get(id); if (!cl) return;
+        var sv = statusVisual(cl);
+        var dot = card.querySelector('.cli-dot');
+        if (dot) { dot.style.background = sv.cor; dot.title = sv.label; }
+      });
+    } catch(e) {}
+  }, 100);
+};
+
+// ════════════════════════════════════════════════════════════
+//  PDF DAS DECLARAÇÕES — via Google Docs export
+// ════════════════════════════════════════════════════════════
+
+// Gerar mala direta E baixar como PDF
+function gerarMalaDiretaPDF(docTipo, cl) {
+  if (!cl) cl = STATE.clienteId ? CL.get(STATE.clienteId) : null;
+  if (!cl) { APP.toast('Abra um cliente primeiro','warn'); return; }
+  if (!SYNC.URL) { APP.toast('Configure o Apps Script em ⚙️ Configurações','warn',4000); return; }
+
+  var NOMES = {
+    inexistencia:'Declaração de Inexistência de Acervo',
+    residencia:'Declaração de Residência',
+    seguranca:'Declaração de Segurança do Acervo',
+    guarda:'Declaração de Guarda de Acervo',
+    cinco_anos:'Declaração de Residência — 5 anos',
+    inquerito:'Declaração de Não Responder a Inquérito'
+  };
+  var nomeDoc = NOMES[docTipo] || 'Declaração';
+
+  APP.loading(true, 'Gerando documento...');
+
+  var params = [
+    'action=malaDireta',
+    'docTipo='    + encodeURIComponent(docTipo),
+    'pastaId='    + encodeURIComponent(cl.pasta_id || ''),
+    'nomeDoc='    + encodeURIComponent(nomeDoc),
+    'nome='       + encodeURIComponent(cl.nome || ''),
+    'cpf='        + encodeURIComponent(cl.cpf  || ''),
+    'rg='         + encodeURIComponent(cl.rg   || ''),
+    'orgao='      + encodeURIComponent(cl.orgao || 'SSP/BA'),
+    'nascimento=' + encodeURIComponent(cl.nascimento || ''),
+    'naturalidade='+ encodeURIComponent(cl.naturalidade || ''),
+    'profissao='  + encodeURIComponent(cl.profissao || ''),
+    'estado_civil='+ encodeURIComponent(cl.estado_civil || ''),
+    'endereco='   + encodeURIComponent(cl.endereco || ''),
+    'cidade='     + encodeURIComponent(cl.cidade   || ''),
+    'cep='        + encodeURIComponent(cl.cep      || ''),
+    'nome_prop='  + encodeURIComponent(cl.nome_prop  || ''),
+    'cpf_prop='   + encodeURIComponent(cl.cpf_prop   || ''),
+    'rg_prop='    + encodeURIComponent(cl.rg_prop    || ''),
+    'orgao_prop=' + encodeURIComponent(cl.orgao_prop || ''),
+    'protocolo='  + encodeURIComponent(cl.protocolo  || '')
+  ];
+
+  fetch(SYNC.URL + '?' + params.join('&'), {cache:'no-store'})
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    APP.loading(false);
+    if (d.ok && d.docId) {
+      // Abrir modal com opções: Google Docs ou PDF
+      _mostrarOpcoesDoc(d.docId, d.url, nomeDoc);
+    } else {
+      APP.toast('Erro: ' + (d.erro||'Falha'), 'danger', 5000);
+    }
+  })
+  .catch(function(){
+    APP.loading(false);
+    APP.toast('Sem conexão com o servidor','danger',4000);
+  });
+}
+
+function _mostrarOpcoesDoc(docId, docUrl, nomeDoc) {
+  var mc = G('modal-decl-body'); if (!mc) return;
+
+  // URL de export PDF do Google Docs
+  var pdfUrl  = 'https://docs.google.com/document/d/' + docId + '/export?format=pdf';
+  var wordUrl = 'https://docs.google.com/document/d/' + docId + '/export?format=docx';
+
+  var wrap = document.createElement('div');
+
+  // Sucesso
+  var topo = document.createElement('div');
+  topo.style.cssText = 'text-align:center;padding:16px 0 14px';
+  topo.innerHTML = '<div style="font-size:40px;margin-bottom:8px">✅</div>'
+    + '<div style="font-size:15px;font-weight:800;color:#E8F4FF">Documento Gerado!</div>'
+    + '<div style="font-size:11px;color:#5A9E6E;margin-top:4px">' + E(nomeDoc) + '</div>';
+  wrap.appendChild(topo);
+
+  // Botões de download
+  var btns = [
+    { label:'📥 Baixar PDF', url:pdfUrl, cor:'#E05454', bg:'rgba(224,84,84,.12)', bd:'rgba(224,84,84,.3)' },
+    { label:'📝 Baixar Word (.docx)', url:wordUrl, cor:'#4A7BC4', bg:'rgba(74,123,196,.12)', bd:'rgba(74,123,196,.3)' },
+    { label:'📄 Abrir no Google Docs', url:docUrl, cor:'#5A9E6E', bg:'rgba(90,158,110,.12)', bd:'rgba(90,158,110,.3)' }
+  ];
+
+  btns.forEach(function(b){
+    var btn = document.createElement('button');
+    btn.innerHTML = b.label;
+    btn.style.cssText = 'width:100%;height:48px;background:'+b.bg+';border:1px solid '+b.bd
+      +';border-radius:9px;color:'+b.cor+';font-size:13px;font-weight:700;cursor:pointer;margin-bottom:7px';
+    var _u = b.url;
+    btn.onclick = function(){ window.open(_u, '_blank'); };
+    wrap.appendChild(btn);
+  });
+
+  // Fechar
+  var fch = document.createElement('button');
+  fch.textContent = 'Fechar';
+  fch.style.cssText = 'width:100%;height:38px;background:transparent;border:1px solid rgba(74,123,196,.18);border-radius:8px;color:#5C8AA8;font-size:12px;cursor:pointer;margin-top:2px';
+  fch.onclick = function(){ MODAL.close('modal-decl'); };
+  wrap.appendChild(fch);
+
+  mc.innerHTML = ''; mc.appendChild(wrap);
+  MODAL.open('modal-decl');
+}
+
+// Sobrescrever gerarMalaDireta para usar a versão com PDF
+var _origGerarMD = gerarMalaDireta;
+gerarMalaDireta = function(docTipo, cl) {
+  gerarMalaDiretaPDF(docTipo, cl);
+};
+
+// Sobrescrever _declGerarSelecionadas para também oferecer PDF
+var _origDeclGerar = _declGerarSelecionadas;
+_declGerarSelecionadas = function() {
+  var sel = DECLS.filter(function(d){ return _declSelIds[d.id]; });
+  if (!sel.length) { APP.toast('Selecione pelo menos uma declaração','warn'); return; }
+  var cl = STATE.clienteId ? CL.get(STATE.clienteId) : null;
+  if (!cl) { APP.toast('Abra um cliente primeiro','warn',3000); return; }
+  if (!SYNC.URL) { APP.toast('Configure o Apps Script em ⚙️ Configurações','warn',4000); return; }
+
+  APP.toast('Gerando ' + sel.length + ' declaração(ões)...','info',3000);
+  var delay = 0, resultados = [];
+
+  sel.forEach(function(d){
+    setTimeout(function(){
+      var NOMES = {
+        inexistencia:'Declaração de Inexistência de Acervo',
+        residencia:'Declaração de Residência',
+        seguranca:'Declaração de Segurança do Acervo',
+        guarda:'Declaração de Guarda de Acervo',
+        cinco_anos:'Declaração de Residência — 5 anos',
+        inquerito:'Declaração de Não Responder a Inquérito'
+      };
+      var params = [
+        'action=malaDireta',
+        'docTipo='    + encodeURIComponent(d.id),
+        'pastaId='    + encodeURIComponent(cl.pasta_id    || ''),
+        'nomeDoc='    + encodeURIComponent(NOMES[d.id]    || d.nm),
+        'nome='       + encodeURIComponent(cl.nome         || ''),
+        'cpf='        + encodeURIComponent(cl.cpf          || ''),
+        'rg='         + encodeURIComponent(cl.rg           || ''),
+        'orgao='      + encodeURIComponent(cl.orgao        || 'SSP/BA'),
+        'nascimento=' + encodeURIComponent(cl.nascimento   || ''),
+        'naturalidade='+ encodeURIComponent(cl.naturalidade|| ''),
+        'profissao='  + encodeURIComponent(cl.profissao    || ''),
+        'estado_civil='+ encodeURIComponent(cl.estado_civil|| ''),
+        'endereco='   + encodeURIComponent(cl.endereco     || ''),
+        'cidade='     + encodeURIComponent(cl.cidade       || ''),
+        'cep='        + encodeURIComponent(cl.cep          || ''),
+        'nome_prop='  + encodeURIComponent(cl.nome_prop    || ''),
+        'cpf_prop='   + encodeURIComponent(cl.cpf_prop     || ''),
+        'rg_prop='    + encodeURIComponent(cl.rg_prop      || ''),
+        'orgao_prop=' + encodeURIComponent(cl.orgao_prop   || ''),
+        'protocolo='  + encodeURIComponent(cl.protocolo    || '')
+      ];
+      fetch(SYNC.URL+'?'+params.join('&'),{cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(res){
+        if(res.ok&&res.docId){
+          resultados.push({
+            nm:    d.nm,
+            docId: res.docId,
+            url:   res.url,
+            pdf:   'https://docs.google.com/document/d/'+res.docId+'/export?format=pdf',
+            word:  'https://docs.google.com/document/d/'+res.docId+'/export?format=docx'
+          });
+          APP.toast('✅ '+d.nm.substring(0,25)+'...','success',3000);
+          if(resultados.length===sel.length) _mostrarResultadosPDF(resultados);
+        } else {
+          APP.toast('Erro em '+d.nm+': '+(res.erro||''),'danger',5000);
+        }
+      })
+      .catch(function(){ APP.toast('Sem conexão ao gerar '+d.nm,'danger',4000); });
+    }, delay);
+    delay += 1500;
+  });
+};
+
+function _mostrarResultadosPDF(resultados) {
+  var mc = G('modal-decl-body'); if (!mc) return;
+  var wrap = document.createElement('div');
+
+  var topo = document.createElement('div');
+  topo.style.cssText = 'text-align:center;padding:14px 0 10px';
+  topo.innerHTML = '<div style="font-size:36px;margin-bottom:6px">✅</div>'
+    + '<div style="font-size:15px;font-weight:800;color:#E8F4FF">'+resultados.length+' Documento(s) Gerado(s)</div>';
+  wrap.appendChild(topo);
+
+  resultados.forEach(function(r){
+    var sec = document.createElement('div');
+    sec.style.cssText = 'background:#0C1A28;border:1px solid rgba(74,123,196,.14);border-radius:9px;padding:10px;margin-bottom:8px';
+    sec.innerHTML = '<div style="font-size:11px;font-weight:700;color:#9AB8D4;margin-bottom:7px">'+E(r.nm)+'</div>';
+
+    var row = document.createElement('div');
+    row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px';
+
+    [
+      {label:'📥 PDF', url:r.pdf, cor:'#E05454'},
+      {label:'📝 Word', url:r.word, cor:'#4A7BC4'},
+      {label:'📄 Docs', url:r.url, cor:'#5A9E6E'}
+    ].forEach(function(b){
+      var btn = document.createElement('button');
+      btn.textContent = b.label;
+      btn.style.cssText = 'height:34px;background:rgba(0,0,0,.2);border:1px solid '
+        +b.cor+'44;border-radius:7px;color:'+b.cor+';font-size:11px;font-weight:700;cursor:pointer';
+      var _u = b.url;
+      btn.onclick = function(){ window.open(_u,'_blank'); };
+      row.appendChild(btn);
+    });
+    sec.appendChild(row);
+    wrap.appendChild(sec);
+  });
+
+  var fch = document.createElement('button');
+  fch.textContent = 'Fechar';
+  fch.style.cssText = 'width:100%;height:38px;background:transparent;border:1px solid rgba(74,123,196,.18);border-radius:8px;color:#5C8AA8;font-size:12px;cursor:pointer;margin-top:4px';
+  fch.onclick = function(){ MODAL.close('modal-decl'); };
+  wrap.appendChild(fch);
+
+  mc.innerHTML = ''; mc.appendChild(wrap);
+  MODAL.open('modal-decl');
+}
+
 </script>
 </body>
 </html>
