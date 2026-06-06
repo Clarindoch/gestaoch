@@ -1354,739 +1354,15 @@ input[type=search]:focus { border-color: var(--gold); }
           <div class="panel">
             <div class="panel-header">
               <h3>📅 Próximos Eventos</h3>
-              <button class="btn btn-ghost btn-sm" onclick="ir('dashboard')">Agenda</button>
+              <div style="display:flex;gap:7px">
+                <button class="btn btn-sm" onclick="abrirModalEvento(-1)" style="height:28px;padding:0 10px;background:rgba(201,168,67,.15);border:1px solid var(--border);border-radius:6px;color:var(--gold);font-size:11px;font-weight:700;cursor:pointer">+ Novo</button>
+                <button class="btn btn-ghost btn-sm" onclick="ir('agenda')">Agenda</button>
+              </div>
             </div>
             <div class="panel-body">
               <div class="agenda-list" id="home-agenda-list">
-                <div class="ag-item urgente">
-                  <div class="ag-date">HOJE<br>09:00</div>
-                  <div>
-                    <div class="ag-desc">Renovação CTR</div>
-                    <div class="ag-cliente">GUSTAVO MENDES — CTR</div>
-                  </div>
-                </div>
-                <div class="ag-item">
-                  <div class="ag-date">HOJE<br>14:00</div>
-                  <div>
-                    <div class="ag-desc">Entrega documentação</div>
-                    <div class="ag-cliente">FRANCO SILVA — CH</div>
-                  </div>
-                </div>
-                <div class="ag-item">
-                  <div class="ag-date">05/06<br>10:00</div>
-                  <div>
-                    <div class="ag-desc">Consultoria empresarial</div>
-                    <div class="ag-cliente">MARIA SOUZA — CH</div>
-                  </div>
-                </div>
+                <div style="text-align:center;padding:16px;color:var(--text-dim);font-size:12px;font-style:italic">Carregando eventos...</div>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ====================== CADASTRO RÁPIDO ====================== -->
-      <div id="screen-cadastro-rapido" class="screen">
-        <div class="screen-title">
-          <div>
-            <h2>⚡ Cadastro Rápido</h2>
-            <p>Registre um novo cliente com os dados essenciais</p>
-          </div>
-          <button class="btn btn-ghost" onclick="abrirNovoCliente(false)">Ficha completa →</button>
-        </div>
-        <div class="form-container" style="max-width:600px;">
-          <div style="padding:24px;">
-            <div class="form-grid cols-2">
-              <div class="field span-2">
-                <label>Nome Completo *</label>
-                <input type="text" id="rq-nome" placeholder="Nome completo do cliente" oninput="toUpper(this)">
-              </div>
-              <div class="field">
-                <label>CPF *</label>
-                <input type="text" id="rq-cpf" placeholder="000.000.000-00" oninput="maskCPF(this)">
-              </div>
-              <div class="field">
-                <label>WhatsApp *</label>
-                <input type="text" id="rq-whatsapp" placeholder="(00) 00000-0000" oninput="maskPhone(this)">
-              </div>
-              <div class="field">
-                <label>Empresa / Vínculo</label>
-                <select id="rq-empresa">
-                  <option value="">Selecione</option>
-                  <option>CH</option>
-                  <option>CTR</option>
-                  <option>AMBOS</option>
-                  <option>EXTERNO</option>
-                </select>
-              </div>
-              <div class="field">
-                <label>Status</label>
-                <select id="rq-status">
-                  <option value="ATIVO">ATIVO</option>
-                  <option value="INATIVO">INATIVO</option>
-                </select>
-              </div>
-              <div class="field span-2">
-                <label>Protocolo do Serviço</label>
-                <div class="field-proto">
-                  <input type="text" id="rq-proto" placeholder="Gerado automaticamente" readonly style="background:rgba(10,25,45,0.6);">
-                  <button class="btn-gen-proto" onclick="gerarProtocolo('rq-proto')">🔁 Gerar</button>
-                </div>
-              </div>
-              <div class="field span-2">
-                <label>Observação</label>
-                <textarea id="rq-obs" placeholder="Observações iniciais..." rows="3"></textarea>
-              </div>
-            </div>
-          </div>
-          <div class="form-actions">
-            <button class="btn btn-ghost" onclick="limparForm('rq')">🗑 Limpar</button>
-            <button class="btn btn-gold" onclick="salvarRapido()">💾 Salvar Cliente</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ====================== NOVO CLIENTE (COMPLETO) ====================== -->
-      <div id="screen-novo-cliente" class="screen">
-        <div class="screen-title">
-          <div>
-            <h2>👤 Novo Cliente — Ficha Completa</h2>
-            <p>Preencha todas as informações do cliente</p>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <span class="proto-badge" id="proto-display">PROTOCOLO: —</span>
-            <button class="btn btn-ghost btn-sm" onclick="gerarProtocolo('nc-proto-hidden'); atualizarProtoDisplay()">🔁 Gerar Protocolo</button>
-          </div>
-        </div>
-        <input type="hidden" id="nc-proto-hidden">
-
-        <div class="form-container">
-          <div class="form-tabs">
-            <button class="ftab active" onclick="showFTab(this,'ft-identificacao')">👤 Identificação</button>
-            <button class="ftab" onclick="showFTab(this,'ft-endereco')">📍 Endereço</button>
-            <button class="ftab" onclick="showFTab(this,'ft-seguranca')">🔐 Segurança</button>
-            <button class="ftab" onclick="showFTab(this,'ft-proprietario')">🏠 Proprietário</button>
-            <button class="ftab" onclick="showFTab(this,'ft-servico')">🔧 Serviço</button>
-          </div>
-
-          <!-- Tab: Identificação -->
-          <div id="ft-identificacao" class="form-tab-content active">
-            <div class="form-grid cols-3">
-
-              <!-- LINHA 1: Protocolo + Empresa + Status -->
-              <div class="section-divider">Identificação do Serviço</div>
-              <div class="field">
-                <label>Protocolo *</label>
-                <div class="field-proto">
-                  <input type="text" id="nc-proto-vis" placeholder="CH-2026-001" oninput="toUpper(this)">
-                  <button class="btn-gen-proto" onclick="gerarProtocolo('nc-proto-vis')">🔁</button>
-                </div>
-              </div>
-              <div class="field">
-                <label>Empresa / Vínculo *</label>
-                <select id="nc-empresa">
-                  <option value="">Selecione</option>
-                  <option>CH</option>
-                  <option>CTR</option>
-                  <option>AMBOS</option>
-                  <option>EXTERNO</option>
-                </select>
-              </div>
-              <div class="field">
-                <label>Status *</label>
-                <select id="nc-status">
-                  <option value="ATIVO">ATIVO</option>
-                  <option value="INATIVO">INATIVO</option>
-                </select>
-              </div>
-
-              <!-- LINHA 2: Nome completo (linha toda) -->
-              <div class="section-divider">Dados Pessoais</div>
-              <div class="field span-3">
-                <label>Nome Completo *</label>
-                <input type="text" id="nc-nome" placeholder="NOME COMPLETO DO CLIENTE" oninput="toUpper(this)" style="font-size:15px;font-weight:600;padding:11px 14px;">
-              </div>
-
-              <!-- LINHA 3: CPF | RG | Órgão Expedidor -->
-              <div class="field">
-                <label>CPF *</label>
-                <input type="text" id="nc-cpf" placeholder="000.000.000-00" oninput="maskCPF(this)">
-              </div>
-              <div class="field">
-                <label>RG</label>
-                <input type="text" id="nc-rg" placeholder="Número do RG" oninput="toUpper(this)">
-              </div>
-              <div class="field">
-                <label>Órgão Expedidor / Data</label>
-                <div style="display:flex;gap:6px;">
-                  <input type="text" id="nc-orgao" placeholder="SSP/BA" oninput="toUpper(this)" style="flex:1;">
-                  <input type="text" id="nc-rg-data" placeholder="DD/MM/AAAA" oninput="maskDate(this)" style="width:120px;">
-                </div>
-              </div>
-
-              <!-- LINHA 4: Data Nascimento | Naturalidade | Profissão -->
-              <div class="field">
-                <label>Data de Nascimento</label>
-                <input type="text" id="nc-nascimento" placeholder="DD/MM/AAAA" oninput="maskDate(this)">
-              </div>
-              <div class="field">
-                <label>Naturalidade</label>
-                <input type="text" id="nc-naturalidade" placeholder="CIDADE/UF" oninput="toUpper(this)">
-              </div>
-              <div class="field">
-                <label>Profissão</label>
-                <input type="text" id="nc-profissao" placeholder="PROFISSÃO" oninput="toUpper(this)">
-              </div>
-
-              <!-- LINHA 5: Estado Civil | Nome da Mãe (span 2) -->
-              <div class="field">
-                <label>Estado Civil</label>
-                <select id="nc-estadocivil">
-                  <option value="">Selecione</option>
-                  <option>SOLTEIRO(A)</option>
-                  <option>CASADO(A)</option>
-                  <option>DIVORCIADO(A)</option>
-                  <option>VIÚVO(A)</option>
-                  <option>UNIÃO ESTÁVEL</option>
-                </select>
-              </div>
-              <div class="field span-2">
-                <label>Nome da Mãe</label>
-                <input type="text" id="nc-mae" placeholder="NOME COMPLETO DA MÃE" oninput="toUpper(this)">
-              </div>
-
-              <!-- LINHA 6: Título de Eleitor -->
-              <div class="section-divider">Título de Eleitor</div>
-              <div class="field">
-                <label>Número do Título</label>
-                <input type="text" id="nc-titulo" placeholder="Número" oninput="toUpper(this)">
-              </div>
-              <div class="field">
-                <label>Zona</label>
-                <input type="text" id="nc-zona" placeholder="Zona eleitoral" oninput="toUpper(this)">
-              </div>
-              <div class="field">
-                <label>Seção</label>
-                <input type="text" id="nc-secao" placeholder="Seção" oninput="toUpper(this)">
-              </div>
-
-            </div>
-          </div>
-
-          <!-- Tab: Documentos removida — dados agora estão em Identificação -->
-          <!-- Mantemos a div vazia para não quebrar o array de abas -->
-          <div id="ft-documento" class="form-tab-content" style="display:none!important;"></div>
-
-          <!-- Tab: Endereço -->
-          <div id="ft-endereco" class="form-tab-content">
-
-            <div style="margin-bottom:18px;padding:10px 14px;background:rgba(201,168,76,0.07);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:11px;color:var(--text-dim);line-height:1.8;">
-              📌 Cada endereço tem <strong style="color:var(--gold);">3 campos</strong>:
-              &nbsp;<strong style="color:var(--white);">Endereço</strong> (rua, nº, bairro — tudo junto)&nbsp;·&nbsp;
-              <strong style="color:var(--white);">Cidade/UF</strong> (ex: CRUZ DAS ALMAS/BA)&nbsp;·&nbsp;
-              <strong style="color:var(--white);">CEP</strong>
-            </div>
-
-            <!-- ENDEREÇO 1 -->
-            <div style="background:rgba(22,53,88,0.35);border:1px solid rgba(201,168,76,0.18);border-radius:var(--radius);padding:20px;margin-bottom:16px;">
-              <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid rgba(201,168,76,0.15);">
-                📍 Endereço Principal
-              </div>
-              <div style="display:flex;flex-direction:column;gap:14px;">
-                <div class="field">
-                  <label>Endereço (Rua, Nº, Bairro — tudo junto)</label>
-                  <input type="text" id="nc-end1"
-                    placeholder="Ex: RUA DAS FLORES, 123, BAIRRO CENTRO"
-                    oninput="toUpper(this)"
-                    style="font-size:14px;padding:11px 14px;">
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 140px;gap:14px;">
-                  <div class="field">
-                    <label>Cidade/UF</label>
-                    <input type="text" id="nc-cidadeuf1"
-                      placeholder="Ex: CRUZ DAS ALMAS/BA"
-                      oninput="toUpper(this)">
-                  </div>
-                  <div class="field">
-                    <label>CEP</label>
-                    <input type="text" id="nc-cep1"
-                      placeholder="00000-000"
-                      oninput="maskCEP(this)">
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- ENDEREÇO 2 -->
-            <div style="background:rgba(22,53,88,0.22);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);padding:20px;">
-              <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.06);">
-                📍 Endereço 2 <span style="font-weight:400;font-size:10px;">(opcional)</span>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:14px;">
-                <div class="field">
-                  <label>Endereço (Rua, Nº, Bairro — tudo junto)</label>
-                  <input type="text" id="nc-end2"
-                    placeholder="Ex: AV. CENTRAL, 456, BAIRRO NOVO"
-                    oninput="toUpper(this)"
-                    style="font-size:14px;padding:11px 14px;">
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 140px;gap:14px;">
-                  <div class="field">
-                    <label>Cidade/UF</label>
-                    <input type="text" id="nc-cidadeuf2"
-                      placeholder="Ex: FEIRA DE SANTANA/BA"
-                      oninput="toUpper(this)">
-                  </div>
-                  <div class="field">
-                    <label>CEP</label>
-                    <input type="text" id="nc-cep2"
-                      placeholder="00000-000"
-                      oninput="maskCEP(this)">
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <!-- Tab: Segurança -->
-          <div id="ft-seguranca" class="form-tab-content">
-            <div class="form-grid cols-2">
-              <div class="field">
-                <label>WhatsApp *</label>
-                <input type="text" id="nc-whatsapp" placeholder="(00) 00000-0000" oninput="maskPhone(this)">
-              </div>
-              <div class="field">
-                <label>E-mail</label>
-                <input type="email" id="nc-email" placeholder="email@exemplo.com" style="text-transform:none;">
-              </div>
-              <div class="field">
-                <label>Senha de Acesso</label>
-                <input type="password" id="nc-senha" placeholder="Senha do cliente">
-              </div>
-              <div class="field">
-                <label>Confirmar Senha</label>
-                <input type="password" id="nc-senha2" placeholder="Confirme a senha">
-              </div>
-              <div class="field span-2">
-                <label>Autenticação em 2 etapas (2FA)</label>
-                <select id="nc-2fa">
-                  <option value="DESATIVADO">DESATIVADO</option>
-                  <option value="WHATSAPP">VIA WHATSAPP</option>
-                  <option value="EMAIL">VIA E-MAIL</option>
-                  <option value="AMBOS">WHATSAPP + E-MAIL</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Tab: Proprietário -->
-          <div id="ft-proprietario" class="form-tab-content">
-            <div style="margin-bottom:16px;padding:10px 14px;background:rgba(201,168,76,0.08);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text-dim);">
-              ℹ️ Preencha quando o cliente for proprietário de imóvel ou quando houver um responsável pelo imóvel vinculado ao serviço.
-            </div>
-            <div class="form-grid cols-2">
-              <div class="field span-2">
-                <label>Nome do Proprietário</label>
-                <input type="text" id="nc-prop-nome" placeholder="Nome completo do proprietário" oninput="toUpper(this)">
-              </div>
-              <div class="field">
-                <label>CPF do Proprietário</label>
-                <input type="text" id="nc-prop-cpf" placeholder="000.000.000-00" oninput="maskCPF(this)">
-              </div>
-              <div class="field">
-                <label>RG do Proprietário</label>
-                <input type="text" id="nc-prop-rg" placeholder="Número do RG" oninput="toUpper(this)">
-              </div>
-              <div class="field span-2">
-                <label>Observações do Proprietário</label>
-                <textarea id="nc-prop-obs" placeholder="Informações adicionais sobre o proprietário..." rows="4"></textarea>
-              </div>
-            </div>
-          </div>
-
-          <!-- Tab: Serviço -->
-          <div id="ft-servico" class="form-tab-content">
-            <div class="form-grid cols-2">
-              <div class="field span-2">
-                <label>Protocolo do Serviço *</label>
-                <div class="field-proto">
-                  <input type="text" id="nc-proto-vis" placeholder="Ex: CH-2024-001" oninput="toUpper(this)">
-                  <button class="btn-gen-proto" onclick="gerarProtocolo('nc-proto-vis')">🔁 Auto</button>
-                </div>
-              </div>
-              <div class="field">
-                <label>Tipo de Serviço</label>
-                <select id="nc-tipo-servico">
-                  <option value="">Selecione</option>
-                  <option>CONSULTORIA EMPRESARIAL</option>
-                  <option>FORMAÇÃO EM TIRO</option>
-                  <option>APH — ATENDIMENTO PRÉ-HOSPITALAR</option>
-                  <option>MÉTODO C.O.N.T.R.O.L.E</option>
-                  <option>DOCUMENTAÇÃO CTR</option>
-                  <option>RENOVAÇÃO CR</option>
-                  <option>REGISTRO DE ARMA</option>
-                  <option>OUTRO</option>
-                </select>
-              </div>
-              <div class="field">
-                <label>Status do Serviço</label>
-                <select id="nc-status-servico">
-                  <option>EM ANDAMENTO</option>
-                  <option>AGUARDANDO DOCUMENTAÇÃO</option>
-                  <option>CONCLUÍDO</option>
-                  <option>CANCELADO</option>
-                </select>
-              </div>
-              <div class="field">
-                <label>Data de Início</label>
-                <input type="text" id="nc-data-ini" placeholder="DD/MM/AAAA" oninput="maskDate(this)">
-              </div>
-              <div class="field">
-                <label>Previsão de Conclusão</label>
-                <input type="text" id="nc-data-fim" placeholder="DD/MM/AAAA" oninput="maskDate(this)">
-              </div>
-              <div class="field span-2">
-                <label>Observações do Serviço</label>
-                <textarea id="nc-servico-obs" placeholder="Detalhes, pendências, notas importantes..." rows="4"></textarea>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-actions">
-            <button class="btn btn-ghost" onclick="limparFormNC()">🗑 Limpar</button>
-            <button class="btn btn-primary" onclick="proximaAba()">Próxima aba →</button>
-            <button class="btn btn-gold" onclick="salvarCliente()">💾 Salvar Cliente</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ====================== CLIENTES ====================== -->
-      <div id="screen-clientes" class="screen">
-        <div class="screen-title">
-          <div>
-            <h2>📋 Clientes</h2>
-            <p>Gerenciar todos os cadastros</p>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-primary btn-sm" onclick="abrirNovoCliente(true)">⚡ Cadastro Rápido</button>
-            <button class="btn btn-gold btn-sm" onclick="abrirNovoCliente(false)">+ Novo Cliente</button>
-          </div>
-        </div>
-
-        <div class="table-toolbar">
-          <div class="search-box">
-            <span>🔍</span>
-            <input type="text" placeholder="Buscar por nome, CPF, protocolo..." oninput="filtrarClientes(this.value)">
-          </div>
-          <div style="display:flex;gap:8px;">
-            <select style="max-width:140px;padding:8px 12px;font-size:12px;" onchange="filtrarEmpresa(this.value)">
-              <option value="">Todos</option>
-              <option>CH</option>
-              <option>CTR</option>
-              <option>AMBOS</option>
-            </select>
-            <select style="max-width:130px;padding:8px 12px;font-size:12px;" onchange="filtrarStatus(this.value)">
-              <option value="">Todos Status</option>
-              <option>ATIVO</option>
-              <option>INATIVO</option>
-            </select>
-          </div>
-        </div>
-
-        <div style="background:var(--glass);border:1px solid var(--border);border-radius:var(--radius);overflow:auto;">
-          <table class="data-table" id="tabela-clientes">
-            <thead>
-              <tr>
-                <th>Protocolo</th>
-                <th>Nome</th>
-                <th>CPF</th>
-                <th>WhatsApp</th>
-                <th>Empresa</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbody-clientes">
-              <!-- Dados de exemplo -->
-              <tr>
-                <td><span class="proto-badge">CH-2024-001</span></td>
-                <td>GUSTAVO MENDES SILVA</td>
-                <td>123.456.789-00</td>
-                <td>(75) 99999-0001</td>
-                <td><span class="badge badge-ch">CH</span></td>
-                <td><span class="badge badge-ativo">ATIVO</span></td>
-                <td style="white-space:nowrap;">
-                  <button class="btn btn-ghost btn-sm" onclick="verCliente(0)">👁</button>
-                  <button class="btn btn-ghost btn-sm" onclick="editarCliente(0)">✏️</button>
-                  <button class="btn btn-danger btn-sm" onclick="confirmarExcluir(0)">🗑</button>
-                </td>
-              </tr>
-              <tr>
-                <td><span class="proto-badge">CTR-2024-002</span></td>
-                <td>FRANCO AUGUSTO SANTOS</td>
-                <td>987.654.321-00</td>
-                <td>(75) 99999-0002</td>
-                <td><span class="badge badge-ctr">CTR</span></td>
-                <td><span class="badge badge-ativo">ATIVO</span></td>
-                <td style="white-space:nowrap;">
-                  <button class="btn btn-ghost btn-sm">👁</button>
-                  <button class="btn btn-ghost btn-sm">✏️</button>
-                  <button class="btn btn-danger btn-sm">🗑</button>
-                </td>
-              </tr>
-              <tr>
-                <td><span class="proto-badge">CH-2024-003</span></td>
-                <td>MARIA SOUZA OLIVEIRA</td>
-                <td>456.123.789-00</td>
-                <td>(75) 99999-0003</td>
-                <td><span class="badge badge-ch">CH</span></td>
-                <td><span class="badge badge-inativo">INATIVO</span></td>
-                <td style="white-space:nowrap;">
-                  <button class="btn btn-ghost btn-sm">👁</button>
-                  <button class="btn btn-ghost btn-sm">✏️</button>
-                  <button class="btn btn-danger btn-sm">🗑</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- ====================== AGENDA ====================== -->
-      <div id="screen-agenda" class="screen">
-        <div class="screen-title">
-          <div>
-            <h2>📅 Agenda</h2>
-            <p>Organização de compromissos e serviços</p>
-          </div>
-          <button class="btn btn-gold" onclick="abrirModalEvento()">+ Novo Evento</button>
-        </div>
-
-        <div class="agenda-grid">
-          <!-- Calendário -->
-          <div>
-            <div class="calendar-mini">
-              <div class="cal-header">
-                <button class="cal-nav" onclick="navCal(-1)">‹</button>
-                <h3 id="cal-month-year">JUNHO 2026</h3>
-                <button class="cal-nav" onclick="navCal(1)">›</button>
-              </div>
-              <div class="cal-grid">
-                <div class="cal-weekdays">
-                  <span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span>
-                </div>
-                <div class="cal-days" id="cal-days"></div>
-              </div>
-            </div>
-
-            <div style="margin-top:16px;">
-              <div class="panel">
-                <div class="panel-header"><h3>🏷️ Legenda</h3></div>
-                <div class="panel-body" style="display:flex;flex-direction:column;gap:8px;font-size:12px;">
-                  <div style="display:flex;align-items:center;gap:8px;"><div style="width:12px;height:12px;background:var(--moss-bright);border-radius:3px;"></div> Normal</div>
-                  <div style="display:flex;align-items:center;gap:8px;"><div style="width:12px;height:12px;background:#e74c3c;border-radius:3px;"></div> Urgente</div>
-                  <div style="display:flex;align-items:center;gap:8px;"><div style="width:12px;height:12px;background:var(--text-dim);border-radius:3px;"></div> Concluído</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Eventos -->
-          <div>
-            <div style="margin-bottom:12px;font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;">
-              Eventos do dia selecionado
-            </div>
-            <div class="agenda-events" id="agenda-events-list">
-              <div class="evt-card urgente">
-                <div class="evt-time">09:00</div>
-                <div class="evt-info">
-                  <div class="evt-title">Renovação CTR — Gustavo Mendes</div>
-                  <div class="evt-detail">Protocolo: CTR-2024-002 · Presencial</div>
-                </div>
-                <div class="evt-actions">
-                  <button class="btn btn-ghost btn-sm">✏️</button>
-                  <button class="btn btn-primary btn-sm">✓</button>
-                </div>
-              </div>
-              <div class="evt-card">
-                <div class="evt-time">14:00</div>
-                <div class="evt-info">
-                  <div class="evt-title">Entrega documentação — Franco</div>
-                  <div class="evt-detail">Protocolo: CH-2024-001 · Escritório</div>
-                </div>
-                <div class="evt-actions">
-                  <button class="btn btn-ghost btn-sm">✏️</button>
-                  <button class="btn btn-primary btn-sm">✓</button>
-                </div>
-              </div>
-              <div class="evt-card concluido">
-                <div class="evt-time">08:00</div>
-                <div class="evt-info">
-                  <div class="evt-title">Reunião planejamento mensal</div>
-                  <div class="evt-detail">Interno · Concluído</div>
-                </div>
-                <div class="evt-actions">
-                  <button class="btn btn-ghost btn-sm">👁</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ====================== DECLARAÇÕES ====================== -->
-      <div id="screen-declaracoes" class="screen">
-        <div class="screen-title">
-          <div>
-            <h2>📄 Declarações</h2>
-            <p>Emissão de documentos e declarações</p>
-          </div>
-        </div>
-        <div class="rel-cards">
-          <div class="rel-card" onclick="showToast('Em desenvolvimento...')">
-            <div class="rel-icon">📃</div>
-            <div class="rel-label">Declaração de Prestação de Serviço</div>
-          </div>
-          <div class="rel-card" onclick="showToast('Em desenvolvimento...')">
-            <div class="rel-icon">🏆</div>
-            <div class="rel-label">Certificado de Conclusão</div>
-          </div>
-          <div class="rel-card" onclick="showToast('Em desenvolvimento...')">
-            <div class="rel-icon">📜</div>
-            <div class="rel-label">Declaração de Comparecimento</div>
-          </div>
-          <div class="rel-card" onclick="showToast('Em desenvolvimento...')">
-            <div class="rel-icon">📋</div>
-            <div class="rel-label">Ficha Cadastral Completa</div>
-          </div>
-          <div class="rel-card" onclick="showToast('Em desenvolvimento...')">
-            <div class="rel-icon">🔖</div>
-            <div class="rel-label">Comprovante de Protocolo</div>
-          </div>
-        </div>
-        <div style="margin-top:16px;padding:14px 18px;background:rgba(201,168,76,0.08);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text-dim);">
-          💡 Selecione um tipo de declaração e informe o cliente para gerar o documento automaticamente.
-        </div>
-      </div>
-
-      <!-- ====================== RELATÓRIOS ====================== -->
-      <div id="screen-relatorios" class="screen">
-        <div class="screen-title">
-          <div>
-            <h2>📊 Relatórios</h2>
-            <p>Análises e dados consolidados</p>
-          </div>
-          <button class="btn btn-ghost" onclick="showToast('Exportando...')">📥 Exportar</button>
-        </div>
-        <div class="rel-cards">
-          <div class="rel-card" onclick="showToast('Carregando relatório...')">
-            <div class="rel-icon">👥</div>
-            <div class="rel-label">Clientes por Empresa</div>
-          </div>
-          <div class="rel-card" onclick="showToast('Carregando relatório...')">
-            <div class="rel-icon">🔧</div>
-            <div class="rel-label">Serviços por Status</div>
-          </div>
-          <div class="rel-card" onclick="showToast('Carregando relatório...')">
-            <div class="rel-icon">📅</div>
-            <div class="rel-label">Agenda do Mês</div>
-          </div>
-          <div class="rel-card" onclick="showToast('Carregando relatório...')">
-            <div class="rel-icon">📈</div>
-            <div class="rel-label">Evolução de Cadastros</div>
-          </div>
-          <div class="rel-card" onclick="showToast('Carregando relatório...')">
-            <div class="rel-icon">⚠️</div>
-            <div class="rel-label">Serviços Pendentes</div>
-          </div>
-          <div class="rel-card" onclick="showToast('Carregando relatório...')">
-            <div class="rel-icon">🗂️</div>
-            <div class="rel-label">Relatório Completo</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ====================== CONFIGURAÇÕES ====================== -->
-      <div id="screen-configuracoes" class="screen">
-        <div class="screen-title">
-          <div>
-            <h2>⚙️ Configurações</h2>
-            <p>Sistema, integração e manutenção</p>
-          </div>
-        </div>
-
-        <div class="config-sections">
-
-          <!-- Planilha -->
-          <div class="config-section">
-            <div class="config-section-header">🔗 Integração Google Sheets</div>
-            <div class="config-section-body">
-              <div class="config-row">
-                <label>URL da Planilha Google Sheets</label>
-                <input type="text" id="cfg-sheet-url" placeholder="https://docs.google.com/spreadsheets/d/...">
-              </div>
-              <div class="config-row">
-                <label>ID da Planilha</label>
-                <input type="text" id="cfg-sheet-id" placeholder="ID automático após URL">
-              </div>
-              <div class="config-row">
-                <label>Sincronizar automaticamente</label>
-                <label class="toggle">
-                  <input type="checkbox" id="cfg-sync-auto" checked>
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-              <div class="config-row">
-                <label>Pasta raiz no Google Drive</label>
-                <input type="text" id="cfg-folder" placeholder="Nome ou ID da pasta">
-              </div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <button class="btn btn-primary" onclick="showToast('Conectando à planilha...')">🔗 Conectar Planilha</button>
-                <button class="btn btn-ghost" onclick="showToast('Sincronizando dados...')">🔄 Sincronizar Agora</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Frase -->
-          <div class="config-section">
-            <div class="config-section-header">✝️ Frase / Versículo</div>
-            <div class="config-section-body">
-              <div class="config-row">
-                <label>Atualização automática da frase</label>
-                <label class="toggle">
-                  <input type="checkbox" id="cfg-frase-auto" checked>
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-              <div class="field">
-                <label>Frase personalizada (deixe vazio para automático)</label>
-                <textarea id="cfg-frase" placeholder="Digite um versículo ou frase motivacional..." rows="2"></textarea>
-              </div>
-              <button class="btn btn-primary btn-sm" onclick="salvarFrase()">💾 Salvar Frase</button>
-            </div>
-          </div>
-
-          <!-- Sistema -->
-          <div class="config-section">
-            <div class="config-section-header">🛠️ Manutenção</div>
-            <div class="config-section-body">
-              <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                <button class="btn btn-primary" onclick="showToast('Backup gerado com sucesso!')">📦 Fazer Backup</button>
-                <button class="btn btn-ghost" onclick="showToast('Verificando duplicatas...')">🔍 Remover Duplicados</button>
-                <button class="btn btn-danger" onclick="confirmarLimpar()">⚠️ Limpar Cache</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Sobre -->
-          <div class="config-section">
-            <div class="config-section-header">ℹ️ Sobre o Sistema</div>
-            <div class="config-section-body" style="font-size:13px;color:var(--text-dim);line-height:1.8;">
-              <div><strong style="color:var(--gold);">Gestão CH Premium</strong></div>
-              <div>CH Cursos e Consultoria — Sistema de Gestão</div>
-              <div>Versão: 1.0.0 — Build 2026.06</div>
-              <div>Desenvolvido exclusivamente para uso interno</div>
             </div>
           </div>
 
@@ -7890,6 +7166,471 @@ paneSrv = function() {
 };
 
 console.log('✅ Patch agenda/sync/serviços carregado');
+
+
+// ════════════════════════════════════════════════════════════
+//  EVENTOS REAIS + LISTA PERSONALIZADA DE CLIENTES
+// ════════════════════════════════════════════════════════════
+
+// Storage de eventos
+var EV_KEY = 'gch10_eventos';
+function _evGet() { try { return JSON.parse(localStorage.getItem(EV_KEY)||'[]'); } catch(e){ return []; } }
+function _evSave(arr) { localStorage.setItem(EV_KEY, JSON.stringify(arr)); }
+
+// ── RENDERIZAR PRÓXIMOS EVENTOS na home ──────────────────────
+function renderProximosEventos() {
+  var el = document.getElementById('home-agenda-list');
+  if (!el) return;
+
+  var eventos = _evGet();
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+
+  // Filtrar próximos 30 dias e ordenar
+  eventos = eventos.filter(function(ev){
+    var d = new Date(ev.data + 'T00:00:00');
+    return d >= hoje;
+  }).sort(function(a,b){ return (a.data+a.hora).localeCompare(b.data+b.hora); });
+
+  if (!eventos.length) {
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim);font-size:13px">Nenhum evento. Clique em <b style="color:var(--gold)">+ Novo Evento</b> para criar.</div>';
+    return;
+  }
+
+  var DIAS_N  = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  var MESES_N = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var h = '';
+
+  eventos.slice(0,8).forEach(function(ev, i) {
+    var d = new Date(ev.data + 'T00:00:00');
+    var diff = Math.floor((d - hoje)/86400000);
+    var isHoje = diff === 0;
+    var isCedo = diff <= 2;
+    var corBorda = isHoje ? 'var(--danger)' : isCedo ? 'var(--gold)' : 'var(--moss-bright)';
+    var dataLabel = isHoje ? 'HOJE' : diff === 1 ? 'AMANHÃ' : d.getDate() + '/' + String(d.getMonth()+1).padStart(2,'0');
+
+    h += '<div class="ag-item' + (isHoje?' urgente':'') + '" style="cursor:pointer;position:relative" onclick="abrirModalEvento(' + i + ')">'
+      + '<div class="ag-date" style="border-left-color:' + corBorda + '">'
+      + '<div style="font-size:10px;font-weight:800;color:' + corBorda + '">' + dataLabel + '</div>'
+      + '<div style="font-size:12px;color:var(--text-dim)">' + ev.hora + '</div>'
+      + '</div>'
+      + '<div style="flex:1;min-width:0">'
+      + '<div class="ag-desc">' + E(ev.desc) + '</div>'
+      + (ev.cliente ? '<div class="ag-cliente">' + E(ev.cliente) + '</div>' : '')
+      + '</div>'
+      + '<button onclick="event.stopPropagation();excluirEvento(' + i + ')" style="flex-shrink:0;width:24px;height:24px;background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.3);border-radius:5px;color:var(--danger);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>'
+      + '</div>';
+  });
+
+  el.innerHTML = h;
+
+  // Atualizar agenda-preview também
+  renderAgendaPreview();
+}
+
+// ── MODAL CRIAR/EDITAR EVENTO ────────────────────────────────
+function abrirModalEvento(idx) {
+  var eventos = _evGet();
+  var ev = idx >= 0 ? eventos[idx] : null;
+  var isNovo = !ev;
+
+  // Construir conteúdo do modal
+  var mc = document.getElementById('modal-obs-t');
+  if (mc) mc.textContent = isNovo ? '📅 Novo Evento' : '✏️ Editar Evento';
+
+  var mbody = document.querySelector('#modal-obs .mbody');
+  if (!mbody) return;
+
+  // Data de hoje como padrão
+  var hoje = new Date();
+  var hojeStr = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0') + '-' + String(hoje.getDate()).padStart(2,'0');
+
+  // Lista de clientes para select
+  var clOpts = '<option value="">— Nenhum cliente específico —</option>';
+  CL.getAll().filter(function(c){ return c.nome; }).sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); }).forEach(function(c){
+    var sel = ev && ev.clienteId === c.id ? ' selected' : '';
+    clOpts += '<option value="' + c.id + '"' + sel + '>' + E(c.nome) + ' (' + (c.tipo||'CH') + ')</option>';
+  });
+
+  mbody.innerHTML = '<div style="display:grid;gap:12px">'
+    // Descrição
+    + '<div><label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.09em;margin-bottom:5px">Descrição *</label>'
+    + '<input id="ev-desc" type="text" placeholder="Ex: Entregar CR, Ligar para João, Reunião..." value="' + (ev?E(ev.desc):'') + '" style="width:100%;height:44px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;outline:none;padding:0 13px;font-family:inherit"></div>'
+    // Data + Hora
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    + '<div><label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.09em;margin-bottom:5px">Data *</label>'
+    + '<input id="ev-data" type="date" value="' + (ev?ev.data:hojeStr) + '" style="width:100%;height:44px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;outline:none;padding:0 13px;font-family:inherit"></div>'
+    + '<div><label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.09em;margin-bottom:5px">Horário</label>'
+    + '<input id="ev-hora" type="time" value="' + (ev?ev.hora:'09:00') + '" style="width:100%;height:44px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;outline:none;padding:0 13px;font-family:inherit"></div>'
+    + '</div>'
+    // Cliente vinculado
+    + '<div><label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.09em;margin-bottom:5px">Cliente (opcional)</label>'
+    + '<select id="ev-cli" style="width:100%;height:44px;background:rgba(20,30,50,.9);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:13px;outline:none;padding:0 13px;font-family:inherit">' + clOpts + '</select></div>'
+    // Tipo/cor
+    + '<div><label style="display:block;font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.09em;margin-bottom:5px">Tipo</label>'
+    + '<div style="display:flex;gap:7px">'
+    + ['urgente','normal','concluído'].map(function(t){
+        var sel = ev ? ev.tipo===t : t==='normal';
+        return '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-dim)">'
+          + '<input type="radio" name="ev-tipo" value="' + t + '"' + (sel?' checked':'') + '> ' + t.charAt(0).toUpperCase()+t.slice(1) + '</label>';
+      }).join('')
+    + '</div></div>'
+    + '</div>';
+
+  // Botão salvar
+  var btn = document.getElementById('modal-obs-save');
+  if (btn) {
+    btn.textContent = isNovo ? '✅ Criar Evento' : '💾 Salvar';
+    btn.onclick = function() {
+      var desc = (document.getElementById('ev-desc')||{value:''}).value.trim();
+      var data = (document.getElementById('ev-data')||{value:''}).value;
+      var hora = (document.getElementById('ev-hora')||{value:'09:00'}).value || '09:00';
+      var cliId = (document.getElementById('ev-cli')||{value:''}).value;
+      var tipoEl = document.querySelector('input[name="ev-tipo"]:checked');
+      var tipo = tipoEl ? tipoEl.value : 'normal';
+
+      if (!desc) { APP.toast('Digite a descrição','warn'); return; }
+      if (!data) { APP.toast('Selecione a data','warn'); return; }
+
+      var cl = cliId ? CL.get(cliId) : null;
+      var novoEv = {
+        desc: desc,
+        data: data,
+        hora: hora,
+        tipo: tipo,
+        clienteId: cliId || null,
+        cliente: cl ? cl.nome + ' — ' + (cl.tipo||'CH') : ''
+      };
+
+      var evs = _evGet();
+      if (isNovo) evs.push(novoEv);
+      else evs[idx] = novoEv;
+      _evSave(evs);
+
+      MODAL.close('modal-obs');
+      renderProximosEventos();
+      APP.toast(isNovo ? '✅ Evento criado!' : '✅ Evento salvo!', 'success', 2500);
+    };
+  }
+
+  MODAL.open('modal-obs');
+  setTimeout(function(){ var d=document.getElementById('ev-desc'); if(d) d.focus(); }, 200);
+}
+
+function excluirEvento(idx) {
+  if (!confirm('Excluir este evento?')) return;
+  var evs = _evGet();
+  evs.splice(idx, 1);
+  _evSave(evs);
+  renderProximosEventos();
+  APP.toast('Evento removido', 'info', 2000);
+}
+
+// ── BOTÃO + NOVO EVENTO na home ──────────────────────────────
+(function(){
+  // Adicionar botão "Novo Evento" no card de próximos eventos
+  var card = document.querySelector('.home-agenda');
+  if (!card) {
+    // Procurar pelo cabeçalho do card
+    var headers = document.querySelectorAll('.panel-header, .home-section-header');
+    headers.forEach(function(h){
+      if (h.textContent.includes('PRÓXIMOS') || h.textContent.includes('AGENDA')) {
+        card = h.parentElement;
+      }
+    });
+  }
+  // Injetar botão no header do próximos eventos
+  var agendaBtn = document.querySelector('[href="#agenda"], button.agenda-btn, .agenda-link');
+  var proximosHeader = document.querySelector('.home-agenda .panel-header');
+  if (!proximosHeader) {
+    // Tentar encontrar pelo texto
+    document.querySelectorAll('h3, .panel-title, .section-title').forEach(function(el){
+      if (el.textContent.includes('PRÓXIMOS') || el.textContent.includes('EVENTOS')) {
+        proximosHeader = el.parentElement;
+      }
+    });
+  }
+})();
+
+// Inicializar ao carregar
+setTimeout(function(){
+  try { renderProximosEventos(); } catch(e){}
+}, 1200);
+
+// ── LISTA PERSONALIZADA DE CLIENTES ──────────────────────────
+function abrirListaPersonalizada() {
+  var mc = document.getElementById('modal-obs-t');
+  if (mc) mc.textContent = '📋 Lista de Clientes';
+
+  var mbody = document.querySelector('#modal-obs .mbody');
+  if (!mbody) return;
+
+  // Campos disponíveis
+  var CAMPOS = [
+    { id:'nome',        label:'Nome',           def:true  },
+    { id:'cpf',         label:'CPF',            def:true  },
+    { id:'senha',       label:'Senha GOV.BR',   def:false },
+    { id:'dois_fatores',label:'2FA GOV.BR',     def:false },
+    { id:'protocolo',   label:'Protocolo',      def:true  },
+    { id:'tipo',        label:'Tipo (CH/CTR)',  def:true  },
+    { id:'status',      label:'Status',         def:false },
+    { id:'_servicos',   label:'Serviços Ativos',def:false },
+    { id:'whatsapp',    label:'WhatsApp',       def:false },
+    { id:'email',       label:'Email',          def:false },
+    { id:'rg',          label:'RG',             def:false },
+    { id:'nascimento',  label:'Nascimento',     def:false },
+    { id:'cidade',      label:'Cidade',         def:false },
+    { id:'endereco',    label:'Endereço',       def:false },
+  ];
+
+  // Filtros de clientes
+  var FILTROS = [
+    { id:'todos',  label:'Todos' },
+    { id:'ch',     label:'Somente CH' },
+    { id:'ctr',    label:'Somente CTR' },
+    { id:'ativos', label:'Somente Ativos' },
+  ];
+
+  mbody.innerHTML = '<div style="margin-bottom:14px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.09em;margin-bottom:8px">Colunas a exibir</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'
+    + CAMPOS.map(function(c){
+        return '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;color:var(--text-dim);padding:5px 8px;background:rgba(255,255,255,.03);border-radius:6px">'
+          + '<input type="checkbox" id="lc-' + c.id + '"' + (c.def?' checked':'') + ' style="accent-color:var(--gold)"> ' + c.label + '</label>';
+      }).join('')
+    + '</div></div>'
+    + '<div style="margin-bottom:14px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.09em;margin-bottom:8px">Filtrar clientes</div>'
+    + '<div style="display:flex;gap:7px;flex-wrap:wrap">'
+    + FILTROS.map(function(f){
+        return '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-dim)">'
+          + '<input type="radio" name="lc-filtro" value="' + f.id + '"' + (f.id==='todos'?' checked':'') + '> ' + f.label + '</label>';
+      }).join('')
+    + '</div></div>';
+
+  var btn = document.getElementById('modal-obs-save');
+  if (btn) {
+    btn.textContent = '📊 Gerar Lista';
+    btn.onclick = function() {
+      // Campos selecionados
+      var cols = CAMPOS.filter(function(c){ return document.getElementById('lc-'+c.id) && document.getElementById('lc-'+c.id).checked; });
+      if (!cols.length) { APP.toast('Selecione pelo menos uma coluna','warn'); return; }
+
+      // Filtro de clientes
+      var filtroEl = document.querySelector('input[name="lc-filtro"]:checked');
+      var filtro = filtroEl ? filtroEl.value : 'todos';
+
+      var clientes = CL.getAll().filter(function(c){ return c.nome; });
+      if (filtro === 'ch')     clientes = clientes.filter(function(c){ return c.tipo === 'CH'; });
+      if (filtro === 'ctr')    clientes = clientes.filter(function(c){ return c.tipo === 'CTR'; });
+      if (filtro === 'ativos') clientes = clientes.filter(function(c){ return c.status !== 'Inativo'; });
+      clientes.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
+
+      MODAL.close('modal-obs');
+      _mostrarListaGerada(clientes, cols);
+    };
+  }
+
+  MODAL.open('modal-obs');
+}
+
+function _mostrarListaGerada(clientes, cols) {
+  // Abrir em nova janela para impressão
+  var MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var hoje = new Date();
+  var dataHoje = hoje.getDate() + ' ' + MESES[hoje.getMonth()] + ' ' + hoje.getFullYear();
+
+  var thead = '<tr>' + cols.map(function(c){ return '<th>' + c.label + '</th>'; }).join('') + '</tr>';
+  var tbody = clientes.map(function(cl, i){
+    return '<tr' + (i%2===0?'':' style="background:#f5f5f5"') + '>'
+      + cols.map(function(c){
+          var val = cl[c.id] || '–';
+          // Mascarar senha parcialmente para segurança visual
+          // senha sem máscara — acesso próprio do sistema
+          return '<td>' + val + '</td>';
+        }).join('')
+      + '</tr>';
+  }).join('');
+
+  var w = window.open('','_blank');
+  if (!w) { APP.toast('Permita popups para gerar a lista','warn',4000); return; }
+
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">'
+    + '<title>Lista de Clientes — Gestão CH</title>'
+    + '<style>'
+    + 'body{font-family:Arial,sans-serif;font-size:12px;margin:20px;color:#222}'
+    + 'h2{color:#1a2e4a;border-bottom:2px solid #c9a84c;padding-bottom:6px}'
+    + '.info{color:#666;font-size:11px;margin-bottom:12px}'
+    + 'table{width:100%;border-collapse:collapse;font-size:12px}'
+    + 'th{background:#1a2e4a;color:#c9a84c;padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em}'
+    + 'td{padding:7px 10px;border-bottom:1px solid #e0e0e0}'
+    + 'tr:hover td{background:#fffbf0}'
+    + '.footer{margin-top:16px;font-size:10px;color:#999;text-align:right}'
+    + '@media print{button{display:none}}'
+    + '</style></head><body>'
+    + '<h2>📋 Lista de Clientes — CH Cursos e Consultorias</h2>'
+    + '<div class="info">' + clientes.length + ' cliente(s) · Gerado em ' + dataHoje + '</div>'
+    + '<button onclick="window.print()" style="margin-bottom:14px;padding:7px 16px;background:#1a2e4a;color:#c9a84c;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">🖨️ Imprimir / Salvar PDF</button>'
+    + '<table><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table>'
+    + '<div class="footer">Gestão CH v11 Premium · ' + dataHoje + '</div>'
+    + '</body></html>');
+  w.document.close();
+  APP.toast('✅ Lista gerada! ' + clientes.length + ' clientes', 'success', 3000);
+}
+
+// Substituir o botão VER TUDO no home para abrir lista personalizada
+// E adicionar botão NOVO EVENTO
+(function() {
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+      // Botão VER TUDO → abre lista personalizada
+      document.querySelectorAll('button, a').forEach(function(el){
+        if (el.textContent.trim() === 'VER TUDO') {
+          el.onclick = function(e){ e.stopPropagation(); abrirListaPersonalizada(); };
+        }
+        if (el.textContent.trim() === 'AGENDA') {
+          el.onclick = function(e){ e.stopPropagation(); ir('agenda'); };
+        }
+      });
+
+      // Adicionar botão "Novo Evento" no header de próximos eventos
+      var headers = document.querySelectorAll('.panel-header');
+      headers.forEach(function(h){
+        if (h.textContent.includes('PRÓXIMOS') && !h.querySelector('.btn-novo-ev')) {
+          var btn = document.createElement('button');
+          btn.className = 'btn-novo-ev';
+          btn.textContent = '+ Novo';
+          btn.style.cssText = 'height:28px;padding:0 10px;background:linear-gradient(135deg,var(--moss),var(--navy-light));border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:700;cursor:pointer';
+          btn.onclick = function(){ abrirModalEvento(-1); };
+          h.appendChild(btn);
+        }
+      });
+    }, 800);
+  });
+
+  // Também tentar após load
+  window.addEventListener('load', function(){
+    setTimeout(function(){
+      document.querySelectorAll('button').forEach(function(el){
+        if (el.textContent.trim() === 'VER TUDO') {
+          el.onclick = function(){ abrirListaPersonalizada(); };
+        }
+        if (el.textContent.trim() === 'AGENDA') {
+          el.onclick = function(){ ir('agenda'); };
+        }
+      });
+      // Botão Lista na tela de clientes
+      var scCli = document.getElementById('screen-clientes');
+      if (scCli && !document.getElementById('btn-lista-personalizada')) {
+        var barraTop = scCli.querySelector('.screen-title > div:last-child, .screen-title > div');
+        if (barraTop) {
+          var btnLista = document.createElement('button');
+          btnLista.id = 'btn-lista-personalizada';
+          btnLista.textContent = '📋 Lista';
+          btnLista.style.cssText = 'height:34px;padding:0 14px;background:rgba(201,168,76,.15);border:1px solid var(--border);border-radius:6px;color:var(--gold);font-size:12px;font-weight:700;cursor:pointer';
+          btnLista.onclick = abrirListaPersonalizada;
+          barraTop.appendChild(btnLista);
+        }
+      }
+      renderProximosEventos();
+    }, 1000);
+  });
+})();
+
+console.log('✅ Eventos + Lista personalizada carregados');
+
+
+// ════════════════════════════════════════════════════════════
+//  SERVIÇO FINALIZADO → Mostrar credenciais GOV.BR
+// ════════════════════════════════════════════════════════════
+
+finalizarServico = function(srvId) {
+  var s = SRV.get ? SRV.get(srvId) : null;
+  if (!s) return;
+  var cl = CL.get(s.cliente_id || s.clienteId || STATE.clienteId);
+  if (!confirm('Finalizar o serviço "' + (s.tipo||'') + '"?\nEle não aparecerá mais no relatório de ativos.')) return;
+
+  s.status = 'Deferido';
+  s.finalizado = new Date().toLocaleDateString('pt-BR');
+  SRV.save(s);
+  APP.toast('✅ Serviço finalizado!', 'success', 3000);
+
+  // Se o cliente tem senha GOV.BR, mostrar credenciais
+  if (cl && cl.senha) {
+    setTimeout(function() {
+      _mostrarCredenciaisGov(cl, s);
+    }, 500);
+  }
+
+  try { paneSrv(); }   catch(e){}
+  try { renderRel(); } catch(e){}
+  try { renderDB(); }  catch(e){}
+};
+
+function _mostrarCredenciaisGov(cl, s) {
+  var mc = document.getElementById('modal-obs-t');
+  if (mc) mc.textContent = '🔐 Credenciais GOV.BR';
+
+  var mbody = document.querySelector('#modal-obs .mbody');
+  if (!mbody) return;
+
+  var btn = document.getElementById('modal-obs-save');
+  if (btn) { btn.textContent = '✓ OK'; btn.onclick = function(){ MODAL.close('modal-obs'); }; }
+
+  mbody.innerHTML = '<div style="text-align:center;margin-bottom:16px">'
+    + '<div style="font-size:36px;margin-bottom:8px">✅</div>'
+    + '<div style="font-size:16px;font-weight:800;color:#fff;margin-bottom:4px">' + E(s.tipo||'Serviço') + ' Finalizado!</div>'
+    + '<div style="font-size:12px;color:var(--text-dim)">' + E(cl.nome) + '</div>'
+    + '</div>'
+    // Card de credenciais
+    + '<div style="background:rgba(201,168,67,.07);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px">'
+    + '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">🔐 Acesso GOV.BR</div>'
+    + '<div style="display:grid;gap:8px">'
+    // CPF
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(0,0,0,.2);border-radius:7px">'
+    + '<span style="font-size:11px;color:var(--text-dim);font-weight:600">CPF (login)</span>'
+    + '<span style="font-size:14px;font-weight:800;color:#fff;letter-spacing:.04em">' + E(cl.cpf||'–') + '</span>'
+    + '</div>'
+    // Senha
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(0,0,0,.2);border-radius:7px">'
+    + '<span style="font-size:11px;color:var(--text-dim);font-weight:600">Senha</span>'
+    + '<span style="font-size:16px;font-weight:900;color:var(--gold);letter-spacing:.06em">' + E(cl.senha) + '</span>'
+    + '</div>'
+    // 2FA se houver
+    + (cl.dois_fatores && cl.dois_fatores !== 'Não'
+      ? '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(0,0,0,.2);border-radius:7px">'
+        + '<span style="font-size:11px;color:var(--text-dim);font-weight:600">2FA / Autenticador</span>'
+        + '<span style="font-size:13px;font-weight:700;color:#A78BFA">' + E(cl.dois_fatores) + '</span>'
+        + '</div>'
+      : '')
+    + '</div></div>'
+    // Link GOV.BR
+    + '<button onclick="window.open(\'https://acesso.gov.br\',\'_blank\')" style="width:100%;height:42px;background:rgba(0,100,200,.15);border:1px solid rgba(0,100,200,.3);border-radius:8px;color:#6af;font-size:13px;font-weight:700;cursor:pointer">🔗 Abrir GOV.BR</button>';
+
+  MODAL.open('modal-obs');
+}
+
+// Também: botão "Ver GOV.BR" no resumo do cliente
+var _origPaneResumo = paneResumo;
+if (typeof paneResumo === 'function') {
+  paneResumo = function() {
+    _origPaneResumo();
+    // Adicionar card de credenciais se tiver senha
+    var cl = CL.get(STATE.clienteId);
+    if (!cl || !cl.senha) return;
+    var el = APP.$('pane-resumo'); if (!el || el._isFake) return;
+    var credCard = document.createElement('div');
+    credCard.style.cssText = 'background:rgba(201,168,67,.07);border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:10px;cursor:pointer';
+    credCard.onclick = function(){ _mostrarCredenciaisGov(cl, {}); };
+    credCard.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between">'
+      + '<div style="font-size:12px;font-weight:700;color:var(--gold)">🔐 Credenciais GOV.BR</div>'
+      + '<div style="font-size:12px;color:var(--text-dim)">Toque para ver →</div>'
+      + '</div>'
+      + '<div style="margin-top:6px;font-size:11px;color:var(--text-dim)">'
+      + 'CPF: ' + E(cl.cpf||'–') + ' · Senha: ' + (cl.senha?'••••••':'não cadastrada')
+      + '</div>';
+    el.appendChild(credCard);
+  };
+}
 
 </script>
 </body>
