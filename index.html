@@ -379,6 +379,11 @@ select.inp option{background:#fff}
     <button class="chip"    onclick="setFiltro(this,'CTR')">CTR</button>
   </div>
   <div id="lista-clientes"></div>
+<div id="paginacao-clientes" style="display:none;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:8px">
+  <button class="btn b-out b-sm" id="pag-ant-cli" onclick="paginaAnterior()">&#8249; Anterior</button>
+  <span id="pag-info-cli" style="font-size:13px;color:var(--dim);font-weight:600"></span>
+  <button class="btn b-out b-sm" id="pag-prox-cli" onclick="proximaPagina()">Proximo &#8250;</button>
+</div>
 </div>
 
 <!-- DETALHE -->
@@ -476,7 +481,7 @@ if (acao === 'CRIAR_PASTA') {
   // Criar cabecalho automaticamente
   if (sheet.getLastRow() === 0) {
     if (sheetName === 'Servicos') {
-      sheet.appendRow(['PROTOCOLO','ID','CLI_ID','CLI_NOME','CLI_CODIGO','TIPO',
+      sheet.appendRow(['PROTOCOLO','ID','CLI_ID','CLI_NOME','CLI_CODIGO','TIPO_SERVICO','TIPO_CLIENTE',
         'NOME_SERVICO','DETALHE','INICIO','PRAZO','STATUS','OBS','DATA_PROTOCOLO',
         'ULTIMO_VISTO','GRU_COMUNICADA','CRIADO','ATUALIZADO']);
       sheet.getRange(1,1,1,17).setFontWeight('bold')
@@ -522,7 +527,7 @@ if (acao === 'CRIAR_PASTA') {
   if (sheetName === 'Servicos') {
     linha = [
       params.protocolo, params.id, params.cliId, params.cliNome, params.cliCodigo,
-      params.tipo, params.nomeServico, params.detalhe, params.inicio, params.prazo,
+      params.tipo, params.tipocliente||'', params.nomeServico, params.detalhe, params.inicio, params.prazo,
       params.status, params.obs, params.dataProtocolo, params.ultimoVisto,
       params.gruComunicada, params.criado, params.atualizado||''
     ];
@@ -1026,7 +1031,7 @@ function salvar(){
   else{ var idx=_cls.findIndex(function(c){return c.id===id;}); if(idx>=0)_cls[idx]=d; }
 
   saveClientes();
-  enviarGAS(d, isNovo?'INSERT':'UPDATE');
+  enviarGAS(dadosParaMaiusculo(d), isNovo?'INSERT':'UPDATE');
 
   // Primeiro serviço
   if(isNovo){
@@ -1168,10 +1173,14 @@ function setFiltro(btn,tipo){
   btn.classList.add('on'); _filtro=tipo; renderLista();
 }
 
+var _paginaAtual = 0;
+var _porPagina   = 5;
+var _listaFiltrada = [];
+
 function renderLista(){
   var div=document.getElementById('lista-clientes'); if(!div) return;
   var q=(document.getElementById('srch')||{value:''}).value.toLowerCase();
-  var lista=_cls.filter(function(cl){
+  _listaFiltrada=_cls.filter(function(cl){
     if(_filtro && cl.tipo!==_filtro) return false;
     if(q){
       var hay=[cl.nome,cl.cpf,cl.telefone,cl.rg,cl.clienteId].join('|').toLowerCase();
@@ -1179,14 +1188,44 @@ function renderLista(){
     }
     return true;
   });
-  lista.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
-  if(!lista.length){
+  _listaFiltrada.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
+  _paginaAtual = 0;
+  renderPagina();
+}
+
+function renderPagina(){
+  var div=document.getElementById('lista-clientes'); if(!div) return;
+  if(!_listaFiltrada.length){
     div.innerHTML='<div class="vazio"><div class="vazio-ic">&#128269;</div><div class="vazio-tx">Nenhum cliente encontrado</div></div>';
+    atualizarPaginacao(0,0);
     return;
   }
+  var total  = _listaFiltrada.length;
+  var paginas= Math.ceil(total/_porPagina);
+  if(_paginaAtual>=paginas) _paginaAtual=paginas-1;
+  if(_paginaAtual<0) _paginaAtual=0;
+  var inicio = _paginaAtual*_porPagina;
+  var fatia  = _listaFiltrada.slice(inicio, inicio+_porPagina);
   div.innerHTML='';
-  lista.forEach(function(cl){ div.appendChild(rowCli(cl)); });
+  fatia.forEach(function(cl){ div.appendChild(rowCli(cl)); });
+  atualizarPaginacao(total, paginas);
 }
+
+function atualizarPaginacao(total, paginas){
+  var wrap = document.getElementById('paginacao-clientes');
+  if(!wrap) return;
+  if(paginas<=1){ wrap.style.display='none'; return; }
+  wrap.style.display='flex';
+  var info = document.getElementById('pag-info-cli');
+  var btnAnt = document.getElementById('pag-ant-cli');
+  var btnProx= document.getElementById('pag-prox-cli');
+  if(info) info.textContent='Página '+(_paginaAtual+1)+' de '+paginas+' ('+total+' clientes)';
+  if(btnAnt) btnAnt.disabled = _paginaAtual===0;
+  if(btnProx)btnProx.disabled= _paginaAtual>=paginas-1;
+}
+
+function paginaAnterior(){ if(_paginaAtual>0){ _paginaAtual--; renderPagina(); } }
+function proximaPagina(){ _paginaAtual++; renderPagina(); }
 
 function rowCli(cl){
   var ctr=cl.tipo==='CTR';
@@ -1263,14 +1302,79 @@ function verCliente(id){
     });
     h += '</div>';
   }
-  // Link da pasta no Drive
+  // Pasta no Drive — sempre mostra (com ou sem pasta)
+  h+='<div style="margin-top:12px;padding:12px 14px;background:var(--gold2);border:1.5px solid #e8d5a0;border-radius:var(--r2)">'
+    +'<div style="font-size:12px;color:var(--gold);font-weight:800;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">&#128193; Pasta no Google Drive</div>';
   if(cl.pastaUrl){
-    h+='<div style="margin-top:10px;padding:10px 14px;background:var(--gold2);border:1.5px solid #e8d5a0;border-radius:var(--r2);display:flex;justify-content:space-between;align-items:center">'
-      +'<div style="font-size:12px;color:var(--gold);font-weight:700">&#128193; Pasta no Google Drive</div>'
-      +'<a href="'+cl.pastaUrl+'" target="_blank" class="btn b-gold b-xs" style="text-decoration:none">Abrir Pasta</a>'
+    h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+      +'<span style="font-size:12px;color:var(--dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+cl.pastaUrl+'</span>'
+      +'<a href="'+cl.pastaUrl+'" target="_blank" class="btn b-gold b-xs" style="text-decoration:none;flex-shrink:0">Abrir</a>'
+      +'<button class="btn b-out b-xs" data-alt-pasta="'+cl.id+'" style="flex-shrink:0">Alterar</button>'
       +'</div>';
+  } else {
+    h+='<div style="font-size:12px;color:var(--dim);margin-bottom:8px">Nenhuma pasta vinculada</div>';
   }
-  var det=document.getElementById('det-conteudo'); if(det) det.innerHTML=h;
+  h+='<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">'
+    +'<input class="inp" id="pasta-url-input-'+cl.id+'" placeholder="Cole o link da pasta do cliente..." style="flex:1;height:36px;font-size:12px">'
+    +'<button class="btn b-gold b-xs" data-salvar-pasta="'+cl.id+'" style="flex-shrink:0">Salvar URL</button>'
+    +'<button class="btn b-green b-xs" data-criar-pasta="'+cl.id+'" style="flex-shrink:0">Criar Pasta</button>'
+    +'</div>'
+    +'</div>';
+  var det=document.getElementById('det-conteudo');
+  if(det){
+    det.innerHTML=h;
+    // Eventos nos botões de serviço dentro do detalhe
+    // Handlers pasta
+    det.querySelectorAll('[data-salvar-pasta]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var cid=b.getAttribute('data-salvar-pasta');
+        var inp=document.getElementById('pasta-url-input-'+cid);
+        var url=inp?inp.value.trim():'';
+        if(!url){ toast('Cole o link da pasta','err'); return; }
+        var idx=_cls.findIndex(function(c){ return c.id===cid; });
+        if(idx>=0){ _cls[idx].pastaUrl=url; saveClientes(); verCliente(cid); toast('Pasta salva!','ok'); }
+      });
+    });
+    det.querySelectorAll('[data-criar-pasta]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var cid=b.getAttribute('data-criar-pasta');
+        var cl2=_cls.find(function(c){ return c.id===cid; }); if(!cl2) return;
+        if(!_gasUrl){ toast('Configure a URL do GAS primeiro','err'); return; }
+        var pastaRaizId=_cfgDocs['doc-pasta-raiz-id']||extrairIdDaUrl((_cfgDocs['doc-pasta-raiz']||''));
+        if(!pastaRaizId){ toast('Configure a pasta raiz no Config','err'); return; }
+        toast('Criando pasta...','warn');
+        var qs='acao=CRIAR_PASTA&pastaRaiz='+encodeURIComponent(pastaRaizId)+'&nomePasta='+encodeURIComponent(nomePasta(cl2));
+        fetch(_gasUrl+'?'+qs)
+          .then(function(r){ return r.json(); })
+          .then(function(res){
+            if(res.ok&&res.data){
+              var url='https://drive.google.com/drive/folders/'+res.data.pastaId;
+              var idx=_cls.findIndex(function(c){ return c.id===cid; });
+              if(idx>=0){ _cls[idx].pastaUrl=url; _cls[idx].pastaId=res.data.pastaId; saveClientes(); }
+              verCliente(cid); toast('Pasta criada!','ok');
+            } else { toast('Erro: '+(res.error||'verifique GAS'),'err'); }
+          })
+          .catch(function(){ toast('Falha na conexao','err'); });
+      });
+    });
+    det.querySelectorAll('[data-edit-sv]').forEach(function(b){
+      b.addEventListener('click',function(){
+        abrirEditarServico(b.getAttribute('data-edit-sv'),id);
+      });
+    });
+    det.querySelectorAll('[data-alt-sv]').forEach(function(b){
+      b.addEventListener('click',function(){
+        alterarStatus(b.getAttribute('data-alt-sv'));
+        setTimeout(function(){ verCliente(id); },300);
+      });
+    });
+    det.querySelectorAll('[data-visto-sv]').forEach(function(b){
+      b.addEventListener('click',function(){
+        marcarVisto(b.getAttribute('data-visto-sv'));
+        verCliente(id);
+      });
+    });
+  }
 }
 
 // =========== STATS ===========
@@ -1333,7 +1437,8 @@ function sincronizarTudo(){
   toast('Sincronizando '+_cls.length+' clientes...','warn');
   var done=0, total=_cls.length;
   _cls.forEach(function(cl){
-    var p=Object.keys(cl).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(cl[k]||'');}).join('&');
+    var clUp=dadosParaMaiusculo(cl);
+    var p=Object.keys(clUp).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(clUp[k]||'');}).join('&');
     fetch(_gasUrl+'?acao=INSERT&'+p)
       .then(function(){ done++; if(done===total) toast('Sincronizacao concluida!','ok'); })
       .catch(function(){ done++; if(done===total) toast('Concluido com erros','warn'); });
@@ -1529,6 +1634,7 @@ function salvarServico(){
     cliId: cliId,
     cliNome: cl.nome||'',
     cliCodigo: cl.clienteId||cl.tipo||'',
+    tipoCliente: cl.tipo||'',
     tipo: tipo,
     nomeServico: NOMES_SERV[tipo]+(det?' - '+det:''),
     detalhe: det,
@@ -1540,7 +1646,7 @@ function salvarServico(){
   };
   _servs.unshift(s);
   saveServicos();
-  enviarGAS(s, 'INSERT', 'Servicos');
+  enviarGAS(dadosParaMaiusculo(s), 'INSERT', 'Servicos');
   toast('Servico salvo para '+cl.nome.split(' ')[0]+'!','ok');
   limparServico();
   renderServicos();
@@ -1612,7 +1718,7 @@ function alterarStatus(id){
     s.ultimoVisto   = isoHoje();
   }
   saveServicos(); renderServicos(); renderAlertas();
-  enviarGAS(s, 'UPDATE', 'Servicos');
+  enviarGAS(dadosParaMaiusculo(s), 'UPDATE', 'Servicos');
   toast('Status: '+STATUS_SERV[idx].l,'ok');
 }
 
@@ -1776,10 +1882,12 @@ function renderAlertas(){
 function marcarVisto(svId){
   var s=_servs.find(function(x){ return x.id===svId; }); if(!s) return;
   s.ultimoVisto = isoHoje();
+  s.atualizado  = isoHoje();
   saveServicos();
   renderAlertas();
   renderServicos();
-  toast('Visualizacao registrada!','ok');
+  enviarGAS(dadosParaMaiusculo(s),'UPDATE','Servicos');
+  toast('Visto registrado! Prazo reiniciado.','ok');
 }
 
 // Marcar GRU comunicada
@@ -2188,20 +2296,54 @@ function gerarRelatorio(modo){
       +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Servico</th>'
       +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Inicio</th>'
       +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Prazo</th>'
+      +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Ultimo Visto / GRU</th>'
       +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Obs</th>'
       +'</tr></thead><tbody>';
     lista.forEach(function(s){
+      var diasUlt = diasDesde(s.ultimoVisto||s.inicio);
+      var alertaCor = diasUlt>=14?'color:var(--red);font-weight:700':diasUlt>=12?'color:#b45309;font-weight:700':'';
+      var diasGRU   = s.dataProtocolo ? diasDesde(s.dataProtocolo) : null;
+      var gruAlerta = diasGRU!==null && diasGRU>=20 ? (diasGRU>=30?'<span style="color:var(--red);font-weight:700">GRU VENCIDA</span>':'<span style="color:#b45309;font-weight:700">GRU: '+(30-diasGRU)+' dias</span>') : '';
       h+='<tr>'
         +'<td style="padding:7px 10px;border:1px solid var(--border);font-weight:700;color:var(--blue)">'+(s.protocolo||'—')+'</td>'
-        +'<td style="padding:7px 10px;border:1px solid var(--border)">'+s.cliNome+'</td>'
+        +'<td style="padding:7px 10px;border:1px solid var(--border)">'
+          +'<div style="font-weight:700">'+s.cliNome+'</div>'
+          +'<div style="font-size:11px;color:var(--dim)">'+(s.cliCodigo||s.tipoCliente||'')+'</div>'
+        +'</td>'
         +'<td style="padding:7px 10px;border:1px solid var(--border)">'+s.nomeServico+'</td>'
         +'<td style="padding:7px 10px;border:1px solid var(--border)">'+fmtData(s.inicio)+'</td>'
         +'<td style="padding:7px 10px;border:1px solid var(--border)">'+(s.prazo?fmtData(s.prazo):'—')+'</td>'
+        +'<td style="padding:7px 10px;border:1px solid var(--border);'+alertaCor+'">'
+          +(s.ultimoVisto?fmtData(s.ultimoVisto)+' ('+diasUlt+' dias)':'—')
+          +(gruAlerta?'<br>'+gruAlerta:'')
+        +'</td>'
         +'<td style="padding:7px 10px;border:1px solid var(--border);font-style:italic;color:var(--dim)">'+(s.obs||'—')+'</td>'
         +'</tr>';
     });
     h+='</tbody></table></div>';
   });
+
+  // Resumo por cliente
+  h+='<div style="margin-top:24px"><div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--blue2)">Resumo por Cliente</div>';
+  var porCli={};
+  servsFiltrados.forEach(function(s){
+    if(!porCli[s.cliNome]) porCli[s.cliNome]={nome:s.cliNome,codigo:s.cliCodigo||'',servicos:[]};
+    porCli[s.cliNome].servicos.push(s);
+  });
+  Object.keys(porCli).sort().forEach(function(nome){
+    var c=porCli[nome];
+    h+='<div style="margin-bottom:12px;padding:12px 14px;background:var(--bg);border-radius:var(--r2);border:1px solid var(--border)">'
+      +'<div style="font-size:13px;font-weight:800;color:var(--text)">'+nome+'<span style="font-size:11px;color:var(--dim);margin-left:8px">'+c.codigo+'</span></div>'
+      +'<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">';
+    c.servicos.forEach(function(s){
+      var st=getStatus(s.status);
+      h+='<span style="padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;background:'+st.bg+';color:'+st.cor+';border:1px solid '+st.cor+'33">'
+        +(s.protocolo?s.protocolo+': ':'')
+        +st.l+'</span>';
+    });
+    h+='</div></div>';
+  });
+  h+='</div>';
 
   h+='<div style="text-align:center;font-size:11px;color:var(--muted);padding:14px 0;border-top:1px solid var(--border);margin-top:8px">CH Cursos e Consultorias &mdash; Cruz das Almas/BA</div>';
   h+='</div>';
@@ -2451,6 +2593,60 @@ function gerarFicha(id){
     +'</div>'
     +'</body></html>');
   win.document.close();
+}
+
+// =========== EDITAR SERVIÇO DO DETALHE ===========
+function abrirEditarServico(svId, cliId){
+  var s=_servs.find(function(x){ return x.id===svId; }); if(!s) return;
+  // Preencher modal de serviço
+  _servEditId = svId;
+  _servCliId  = cliId || s.cliId;
+
+  // Preencher busca de cliente
+  var inp=document.getElementById('sv-cli-busca');
+  var hid=document.getElementById('sv-cliente');
+  var cl=_cls.find(function(c){ return c.id===s.cliId; });
+  if(inp && cl) inp.value=cl.nome+(cl.cpf?' — '+cl.cpf:'');
+  if(hid) hid.value=s.cliId;
+
+  // Preencher tipo de serviço
+  var tipSel=document.getElementById('sv-tipo');
+  if(tipSel){ tipSel.value=s.tipo; onServTipo(); }
+  if(s.tipo==='TRANSF'){
+    var det=document.getElementById('sv-transf-det');
+    if(det) det.value=s.detalhe||'';
+  }
+  // Preencher demais campos
+  var svStatus=document.getElementById('sv-status');
+  if(svStatus) svStatus.value=s.status||'aguardando_cli';
+  var svInicio=document.getElementById('sv-inicio');
+  if(svInicio) svInicio.value=s.inicio||'';
+  var svPrazo=document.getElementById('sv-prazo');
+  if(svPrazo) svPrazo.value=s.prazo||'';
+  var svObs=document.getElementById('sv-obs');
+  if(svObs) svObs.value=s.obs||'';
+
+  onCliSel();
+  ir('servicos');
+  window.scrollTo(0,0);
+  toast('Editando servico '+s.protocolo,'ok');
+}
+var _servEditId = null;
+var _servCliId  = null;
+
+function dadosParaMaiusculo(obj){
+  // Campos que NAO devem ser alterados (GOV.BR — senha como digitada)
+  var naoAlterar = ['gsenha','g2fa','gov_senha','gov_2fa','id','cliId','protocolo','pastaUrl','pastaId'];
+  var novo = {};
+  Object.keys(obj).forEach(function(k){
+    var v = obj[k];
+    if(typeof v === 'string' && naoAlterar.indexOf(k) === -1 && v){
+      novo[k] = v.toUpperCase();
+    } else {
+      novo[k] = v;
+    }
+  });
+  return novo;
 }
 // =========== INIT ===========
 loadAll();
