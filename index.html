@@ -166,6 +166,7 @@ select.inp option{background:#fff}
   <button class="nb on" id="nb-inicio"   onclick="ir('inicio')">&#127968; Inicio</button>
   <button class="nb"    id="nb-cadastro" onclick="ir('cadastro')">&#43; Cadastro</button>
   <button class="nb"    id="nb-lista"    onclick="ir('lista')">&#128101; Clientes</button>
+  <button class="nb"    id="nb-servicos" onclick="ir('servicos')">&#128193; Servicos</button>
   <button class="nb"    id="nb-config"   onclick="ir('config')">&#9881; Config</button>
 </div>
 
@@ -196,32 +197,35 @@ select.inp option{background:#fff}
   <div class="card">
     <div class="sec">&#128100; Identificacao Pessoal</div>
     <div class="fg c2">
+      <div class="field s2"><label>Tipo de Cliente *</label>
+        <select class="inp" id="f-tipo">
+          <option value="CH">&#127970; CH - Cursos e Consultorias</option>
+          <option value="CTR">&#127942; CTR - Clube de Tiro</option>
+        </select></div>
       <div class="field s2"><label>Nome Completo *</label>
-        <input class="inp" id="f-nome" placeholder="NOME COMPLETO" oninput="U(this)"></div>
+        <input class="inp" id="f-nome" placeholder="Ex: JOAO SILVA SANTOS" oninput="U(this)"></div>
       <div class="field"><label>CPF</label>
-        <input class="inp" id="f-cpf" placeholder="000.000.000-00" oninput="mCPF(this)" maxlength="14"></div>
+        <input class="inp" id="f-cpf" placeholder="Ex: 000.000.000-00" oninput="mCPF(this)" maxlength="14"></div>
       <div class="field"><label>Senha GOV.BR</label>
-        <input class="inp" id="f-gsenha" placeholder="Senha GOV"></div>
-      <div class="field"><label>2FA / Autenticador</label>
-        <input class="inp" id="f-g2fa" placeholder="Codigo 2FA"></div>
+        <input class="inp" id="f-gsenha" placeholder="Ex: Senha123"></div>
       <div class="field"><label>RG</label>
-        <input class="inp" id="f-rg" placeholder="0000000-0" oninput="U(this)"></div>
+        <input class="inp" id="f-rg" placeholder="Ex: 1234567-8" oninput="U(this)"></div>
       <div class="field"><label>Orgao Expedidor</label>
-        <input class="inp" id="f-orgao" value="SSP/BA" oninput="U(this)"></div>
+        <input class="inp" id="f-orgao" placeholder="Ex: SSP/BA" oninput="U(this)"></div>
       <div class="field"><label>Data de Nascimento</label>
-        <input class="inp" id="f-nasc" placeholder="DD/MM/AAAA" oninput="mData(this)" maxlength="10"></div>
+        <input class="inp" id="f-nasc" placeholder="Ex: 15/06/1990" oninput="mData(this)" maxlength="10"></div>
       <div class="field"><label>Naturalidade</label>
-        <input class="inp" id="f-natural" placeholder="CIDADE/UF" oninput="U(this)"></div>
+        <input class="inp" id="f-natural" placeholder="Ex: CRUZ DAS ALMAS/BA" oninput="U(this)"></div>
       <div class="field"><label>Estado Civil</label>
-        <input class="inp" id="f-civil" placeholder="SOLTEIRO(A)..." oninput="U(this)"></div>
+        <input class="inp" id="f-civil" placeholder="Ex: SOLTEIRO(A), CASADO(A)" oninput="U(this)"></div>
       <div class="field"><label>Profissao</label>
-        <input class="inp" id="f-prof" placeholder="PROFISSAO" oninput="U(this)"></div>
+        <input class="inp" id="f-prof" placeholder="Ex: AUTONOMO, AGRICULTOR" oninput="U(this)"></div>
       <div class="field"><label>Nome do Pai</label>
-        <input class="inp" id="f-pai" oninput="U(this)"></div>
+        <input class="inp" id="f-pai" placeholder="Ex: JOSE SILVA SANTOS" oninput="U(this)"></div>
       <div class="field"><label>Nome da Mae</label>
-        <input class="inp" id="f-mae" oninput="U(this)"></div>
+        <input class="inp" id="f-mae" placeholder="Ex: MARIA SILVA SANTOS" oninput="U(this)"></div>
       <div class="field"><label>Numero do Titulo</label>
-        <input class="inp" id="f-titulo" placeholder="Titulo de eleitor"></div>
+        <input class="inp" id="f-titulo" placeholder="Ex: 0000 0000 0000"></div>
       <div class="field"><label>Tipo</label>
         <select class="inp" id="f-tipo">
           <option value="CH">CH - Cursos e Consultorias</option>
@@ -233,44 +237,44 @@ select.inp option{background:#fff}
     <div class="sec">&#128222; Contato</div>
     <div class="fg c2">
       <div class="field"><label>WhatsApp / Telefone</label>
-        <input class="inp" id="f-tel" placeholder="(00) 00000-0000" oninput="mTel(this)"></div>
+        <input class="inp" id="f-tel" placeholder="Ex: (75) 99999-0000" oninput="mTel(this)"></div>
       <div class="field"><label>E-mail</label>
-        <input class="inp" id="f-email" placeholder="email@exemplo.com" oninput="L(this)"></div>
+        <input class="inp" id="f-email" placeholder="Ex: joao@gmail.com" oninput="L(this)"></div>
     </div>
   </div>
   <div class="card">
     <div class="sec">&#127968; Endereco Residencial</div>
     <div class="fg c2">
       <div class="field s2"><label>Logradouro / Numero / Bairro</label>
-        <input class="inp" id="f-end" placeholder="RUA, No, BAIRRO" oninput="U(this)"></div>
+        <input class="inp" id="f-end" placeholder="Ex: RUA A, 123, CENTRO" oninput="U(this)"></div>
       <div class="field"><label>Cidade / UF</label>
-        <input class="inp" id="f-cidade" placeholder="CRUZ DAS ALMAS/BA" oninput="U(this)"></div>
+        <input class="inp" id="f-cidade" placeholder="Ex: CRUZ DAS ALMAS/BA" oninput="U(this)"></div>
       <div class="field"><label>CEP</label>
-        <input class="inp" id="f-cep" placeholder="00000-000" oninput="mCEP(this)" maxlength="9"></div>
+        <input class="inp" id="f-cep" placeholder="Ex: 44380-000" oninput="mCEP(this)" maxlength="9"></div>
     </div>
   </div>
   <div class="card">
     <div class="sec">&#128104; Proprietario do Imovel <span style="font-weight:400;font-size:10px;color:var(--muted);text-transform:none">(quando o endereco nao e do cliente)</span></div>
     <div class="fg c2">
       <div class="field s2"><label>Nome do Proprietario</label>
-        <input class="inp" id="f-pnome" oninput="U(this)"></div>
+        <input class="inp" id="f-pnome" placeholder="Ex: ANTONIO SOUZA LIMA" oninput="U(this)"></div>
       <div class="field"><label>CPF do Proprietario</label>
-        <input class="inp" id="f-pcpf" placeholder="000.000.000-00" oninput="mCPF(this)" maxlength="14"></div>
+        <input class="inp" id="f-pcpf" placeholder="Ex: 000.000.000-00" oninput="mCPF(this)" maxlength="14"></div>
       <div class="field"><label>RG do Proprietario</label>
-        <input class="inp" id="f-prg" oninput="U(this)"></div>
+        <input class="inp" id="f-prg" placeholder="Ex: 1234567-8" oninput="U(this)"></div>
       <div class="field"><label>Orgao Expedidor</label>
-        <input class="inp" id="f-porgao" value="SSP/BA" oninput="U(this)"></div>
+        <input class="inp" id="f-porgao" placeholder="Ex: SSP/BA" oninput="U(this)"></div>
     </div>
   </div>
   <div class="card">
     <div class="sec">&#127968; Endereco 2 <span style="font-weight:400;font-size:10px;color:var(--muted);text-transform:none">(opcional)</span></div>
     <div class="fg c2">
       <div class="field s2"><label>Logradouro / Numero / Bairro</label>
-        <input class="inp" id="f-end2" placeholder="RUA, No, BAIRRO" oninput="U(this)"></div>
+        <input class="inp" id="f-end2" placeholder="Ex: RUA B, 456, BAIRRO" oninput="U(this)"></div>
       <div class="field"><label>Cidade / UF</label>
-        <input class="inp" id="f-cidade2" placeholder="CIDADE/UF" oninput="U(this)"></div>
+        <input class="inp" id="f-cidade2" placeholder="Ex: FEIRA DE SANTANA/BA" oninput="U(this)"></div>
       <div class="field"><label>CEP</label>
-        <input class="inp" id="f-cep2" placeholder="00000-000" oninput="mCEP(this)" maxlength="9"></div>
+        <input class="inp" id="f-cep2" placeholder="Ex: 44000-000" oninput="mCEP(this)" maxlength="9"></div>
     </div>
   </div>
   <div class="card">
@@ -306,6 +310,7 @@ select.inp option{background:#fff}
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
     <button class="btn b-out b-sm" onclick="ir('lista')">&#8592; Voltar</button>
     <button class="btn b-blue b-sm" onclick="editarAtual()">&#9998; Editar</button>
+    <button class="btn b-green b-sm" onclick="irServicosCliente()">&#128193; + Servico</button>
     <button class="btn b-red b-sm" onclick="excluirAtual()" style="margin-left:auto">&#128465; Excluir</button>
   </div>
   <div id="det-conteudo"></div>
@@ -365,6 +370,85 @@ select.inp option{background:#fff}
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn b-gold b-sm" onclick="salvarAcesso()">&#128190; Salvar Acesso</button>
     </div>
+  </div>
+</div>
+
+<!-- SERVICOS -->
+<div class="pg" id="pg-servicos">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div style="font-size:17px;font-weight:800">&#128193; Novo Servico</div>
+  </div>
+  <div class="card">
+    <div class="sec">&#128101; Cliente</div>
+    <div class="field">
+      <label>Selecionar Cliente *</label>
+      <select class="inp" id="sv-cliente" onchange="onCliSel()">
+        <option value="">-- Selecione o cliente --</option>
+      </select>
+    </div>
+    <div id="sv-cli-info" style="display:none;margin-top:10px;padding:10px 14px;background:var(--blue2);border-radius:var(--r2);font-size:13px;color:var(--blue);font-weight:600"></div>
+  </div>
+  <div class="card">
+    <div class="sec">&#128295; Tipo de Servico</div>
+    <div class="fg c2">
+      <div class="field s2">
+        <label>Servico *</label>
+        <select class="inp" id="sv-tipo" onchange="onServTipo()">
+          <option value="">-- Selecione o servico --</option>
+          <optgroup label="Armamento">
+            <option value="CR">CR - Certificado de Registro</option>
+            <option value="RCR">Renovacao de Certificado de Registro</option>
+            <option value="AC">Autorizacao de Compra</option>
+            <option value="CRAF">CRAF - Certificado de Registro de Arma de Fogo</option>
+            <option value="RCRAF">Renovacao de CRAF</option>
+            <option value="GT">Guia de Trafego</option>
+            <option value="TRANSF">Transferencia</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="field s2" id="sv-transf-wrap" style="display:none">
+        <label>Detalhes da Transferencia *</label>
+        <input class="inp" id="sv-transf-det" placeholder="Ex: Transferencia de pistola cal. 9mm para terceiro" oninput="U(this)">
+      </div>
+      <div class="field">
+        <label>Data de Inicio</label>
+        <input class="inp" id="sv-inicio" type="date">
+      </div>
+      <div class="field">
+        <label>Prazo / Previsao</label>
+        <input class="inp" id="sv-prazo" type="date">
+      </div>
+      <div class="field s2">
+        <label>Status do Servico</label>
+        <select class="inp" id="sv-status">
+          <option value="aguardando_cli">Aguardando Documentacao do Cliente</option>
+          <option value="protocolado">Protocolado</option>
+          <option value="pronto_analise">Pronto para Analise</option>
+          <option value="em_analise">Em Analise</option>
+          <option value="deferido">Deferido</option>
+          <option value="indeferido">Indeferido</option>
+          <option value="restituido">Restituido</option>
+          <option value="restituido_doc">Restituido - Aguardando Documento</option>
+        </select>
+      </div>
+      <div class="field s2">
+        <label>Observacoes</label>
+        <textarea class="inp inp-ta" id="sv-obs" placeholder="Observacoes sobre o servico..." oninput="U(this)"></textarea>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:28px">
+    <button class="btn b-out" onclick="limparServico()">Limpar</button>
+    <button class="btn b-green" onclick="salvarServico()">&#128190; Salvar Servico</button>
+  </div>
+
+  <div class="card" id="sv-lista-card">
+    <div class="sec">&#128203; Servicos Cadastrados</div>
+    <div class="srch-w" style="margin-bottom:10px">
+      <span>&#128269;</span>
+      <input class="srch" id="srch-sv" placeholder="Buscar por cliente ou servico..." oninput="renderServicos()">
+    </div>
+    <div id="lista-servicos"></div>
   </div>
 </div>
 
@@ -452,11 +536,10 @@ function g(id){ var el=document.getElementById(id); return el ? el.value.trim() 
 function set(id,v){ var el=document.getElementById(id); if(el) el.value=(v||''); }
 
 function limparForm(){
-  ['f-nome','f-cpf','f-gsenha','f-g2fa','f-rg','f-orgao','f-nasc','f-natural',
+  ['f-nome','f-cpf','f-gsenha','f-rg','f-nasc','f-natural',
    'f-civil','f-prof','f-pai','f-mae','f-titulo','f-tel','f-email',
-   'f-end','f-cidade','f-cep','f-pnome','f-pcpf','f-prg','f-porgao',
-   'f-end2','f-cidade2','f-cep2','f-obs'].forEach(function(id){ set(id,''); });
-  set('f-orgao','SSP/BA'); set('f-porgao','SSP/BA'); set('f-tipo','CH');
+   'f-end','f-cidade','f-cep','f-pnome','f-pcpf','f-prg',   'f-end2','f-cidade2','f-cep2','f-obs'].forEach(function(id){ set(id,''); });
+  set('f-tipo','CH');
   _editId = null;
   set('cad-tit','+ Novo Cliente');
   var bs = document.getElementById('btn-salvar'); if(bs) bs.textContent = 'Salvar Cliente';
@@ -487,7 +570,7 @@ function salvar(){
 
   var d = {
     id:id, seq:seq, clienteId:cliId, tipo:tipo,
-    nome:nome, cpf:g('f-cpf'), gsenha:g('f-gsenha'), g2fa:g('f-g2fa'),
+    nome:nome, cpf:g('f-cpf'), gsenha:g('f-gsenha'),
     rg:g('f-rg'), orgao:g('f-orgao'), nascimento:g('f-nasc'),
     naturalidade:g('f-natural'), estado_civil:g('f-civil'), profissao:g('f-prof'),
     pai:g('f-pai'), mae:g('f-mae'), titulo:g('f-titulo'),
@@ -514,13 +597,12 @@ function salvar(){
 function editarAtual(){
   var cl = _cls.find(function(c){ return c.id===_editId; }); if(!cl) return;
   var m = {
-    'f-nome':cl.nome,'f-cpf':cl.cpf,'f-gsenha':cl.gsenha,'f-g2fa':cl.g2fa,
-    'f-rg':cl.rg,'f-orgao':cl.orgao,'f-nasc':cl.nascimento,
+    'f-nome':cl.nome,'f-cpf':cl.cpf,'f-gsenha':cl.gsenha,    'f-rg':cl.rg,'f-orgao':cl.orgao,'f-nasc':cl.nascimento,
     'f-natural':cl.naturalidade,'f-civil':cl.estado_civil,'f-prof':cl.profissao,
     'f-pai':cl.pai,'f-mae':cl.mae,'f-titulo':cl.titulo,
     'f-tel':cl.telefone,'f-email':cl.email,
     'f-end':cl.endereco,'f-cidade':cl.cidade,'f-cep':cl.cep,
-    'f-pnome':cl.prop_nome,'f-pcpf':cl.prop_cpf,'f-prg':cl.prop_rg,'f-porgao':cl.prop_orgao,
+    'f-pnome':cl.prop_nome,'f-pcpf':cl.prop_cpf,'f-prg':cl.prop_rg,
     'f-end2':cl.endereco2,'f-cidade2':cl.cidade2,'f-cep2':cl.cep2,'f-obs':cl.obs,'f-tipo':cl.tipo
   };
   Object.keys(m).forEach(function(k){ set(k,m[k]); });
@@ -562,6 +644,7 @@ function ir(pg){
   if(pg==='inicio')  renderInicio();
   if(pg==='lista')   renderLista();
   if(pg==='config')  renderConfig();
+  if(pg==='servicos'){ preencherSelectCliente(); renderServicos(); }
   window.scrollTo(0,0);
 }
 
@@ -663,6 +746,20 @@ function verCliente(id){
     h+='<div class="dado-cel"><div class="dado-lbl">'+p[0]+'</div><div class="dado-val">'+p[1]+'</div></div>';
   });
   h+='</div></div>';
+  // Serviços do cliente
+  var servsCli = _servs.filter(function(s){ return s.cliId===id; });
+  if(servsCli.length){
+    h += '<div class="card" style="margin-top:14px"><div class="sec">&#128193; Servicos ('+servsCli.length+')</div>';
+    servsCli.forEach(function(s){
+      var st = getStatus(s.status);
+      h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">'
+        +'<div><div style="font-size:13px;font-weight:700">'+s.nomeServico+'</div>'
+        +'<div style="font-size:11px;color:var(--dim);margin-top:2px">Inicio: '+fmtData(s.inicio)+(s.prazo?' &middot; Prazo: '+fmtData(s.prazo):'')+'</div></div>'
+        +'<span style="padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;background:'+st.bg+';color:'+st.cor+';border:1px solid '+st.cor+'33;flex-shrink:0">'+st.l+'</span>'
+        +'</div>';
+    });
+    h += '</div>';
+  }
   var det=document.getElementById('det-conteudo'); if(det) det.innerHTML=h;
 }
 
@@ -727,9 +824,9 @@ function sincronizarTudo(){
   });
 }
 
-function enviarGAS(d,acao){
+function enviarGAS(d,acao,sheet){
   if(!_gasUrl) return;
-  var p='acao='+acao+'&'+Object.keys(d).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(d[k]||'');}).join('&');
+  var p='acao='+acao+'&sheet='+(sheet||'Clientes')+'&'+Object.keys(d).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(d[k]||'');}).join('&');
   fetch(_gasUrl+'?'+p)
     .then(function(r){return r.json();})
     .then(function(d){
@@ -787,20 +884,215 @@ function tick(){
 }
 
 // =========== FRASE ===========
-var FRASES=[
-  '"Tudo posso naquele que me fortalece." - Fil 4:13',
-  '"O Senhor e o meu pastor; nada me faltara." - Sl 23:1',
-  '"Busquem primeiro o Reino de Deus." - Mt 6:33',
-  '"A fe move montanhas." - Mt 17:20',
-  'A excelencia nao e um destino, e uma pratica diaria.',
-  'Cada cliente atendido e uma missao cumprida.',
-  'Qualidade e fazer certo na primeira vez.'
+function getFrase(){
+  var h = new Date().getHours();
+  var manha = [
+    '"Com Deus, cada manha e uma nova oportunidade." - Sl 118:24',
+    '"O Senhor renova as forcas de quem nele confia." - Is 40:31',
+    'Bom dia! Que este dia seja cheio de conquistas e servico ao proximo.'
+  ];
+  var tarde = [
+    '"Tudo posso naquele que me fortalece." - Fil 4:13',
+    '"A fidelidade de Deus e nova a cada tarde." - Lm 3:23',
+    'Boa tarde! Continue firme, o trabalho de hoje faz diferenca na vida de alguem.'
+  ];
+  var noite = [
+    '"O Senhor e o meu pastor; nada me faltara." - Sl 23:1',
+    '"Entrega o teu caminho ao Senhor e descansa nele." - Sl 37:5',
+    'Boa noite! Mais um dia de missao cumprida. Descanse e amanha comeca de novo.'
+  ];
+  var lista = h >= 5 && h < 12 ? manha : h >= 12 && h < 18 ? tarde : noite;
+  return lista[Math.floor(Math.random()*lista.length)];
+}
+var FRASES = [];
+function rotFrase(){ var el=document.getElementById('frase-bar'); if(el) el.textContent=getFrase(); }
+
+
+
+function irServicosCliente(){
+  ir('servicos');
+  setTimeout(function(){
+    var sel = document.getElementById('sv-cliente');
+    if(sel && _editId){
+      sel.value = _editId;
+      onCliSel();
+    }
+  }, 50);
+}
+// =========== SERVIÇOS ===========
+var KS = 'gch_servicos_v16';
+var _servs = [];
+
+function loadServicos(){ try{ _servs=JSON.parse(localStorage.getItem(KS)||'[]'); }catch(e){ _servs=[]; } }
+function saveServicos(){ localStorage.setItem(KS, JSON.stringify(_servs)); }
+
+var STATUS_SERV = [
+  {v:'aguardando_cli',   l:'Aguardando Documentacao do Cliente', cor:'#b45309', bg:'#fef3c7'},
+  {v:'protocolado',      l:'Protocolado',                        cor:'#1a5fa8', bg:'#e8f0fa'},
+  {v:'pronto_analise',   l:'Pronto para Analise',                cor:'#6d28d9', bg:'#ede9fe'},
+  {v:'em_analise',       l:'Em Analise',                         cor:'#0369a1', bg:'#e0f2fe'},
+  {v:'deferido',         l:'Deferido',                           cor:'#1e7a48', bg:'#e6f5ee'},
+  {v:'indeferido',       l:'Indeferido',                         cor:'#c0392b', bg:'#fdecea'},
+  {v:'restituido',       l:'Restituido',                         cor:'#b8902a', bg:'#faf3e0'},
+  {v:'restituido_doc',   l:'Restituido - Aguardando Documento',  cor:'#92400e', bg:'#fef3c7'}
 ];
-var _fi=0;
-function rotFrase(){ var el=document.getElementById('frase-bar'); if(el) el.textContent=FRASES[_fi++%FRASES.length]; }
+
+function getStatus(v){
+  return STATUS_SERV.find(function(s){ return s.v===v; }) ||
+         {v:v, l:v, cor:'var(--dim)', bg:'var(--bg)'};
+}
+
+var NOMES_SERV = {
+  'CR':'CR - Certificado de Registro',
+  'RCR':'Renovacao de Certificado de Registro',
+  'AC':'Autorizacao de Compra',
+  'CRAF':'CRAF - Certificado de Registro de Arma de Fogo',
+  'RCRAF':'Renovacao de CRAF',
+  'GT':'Guia de Trafego',
+  'TRANSF':'Transferencia'
+};
+
+function onCliSel(){
+  var id = document.getElementById('sv-cliente').value;
+  var box = document.getElementById('sv-cli-info');
+  if(!id){ box.style.display='none'; return; }
+  var cl = _cls.find(function(c){ return c.id===id; });
+  if(!cl){ box.style.display='none'; return; }
+  box.style.display='block';
+  box.innerHTML = (cl.clienteId||cl.tipo)+' &middot; '+cl.nome+(cl.cpf?' &middot; '+cl.cpf:'');
+}
+
+function onServTipo(){
+  var v = document.getElementById('sv-tipo').value;
+  var wrap = document.getElementById('sv-transf-wrap');
+  if(wrap) wrap.style.display = v==='TRANSF' ? 'block' : 'none';
+}
+
+function preencherSelectCliente(){
+  var sel = document.getElementById('sv-cliente'); if(!sel) return;
+  var atual = sel.value;
+  sel.innerHTML = '<option value="">-- Selecione o cliente --</option>';
+  _cls.slice().sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); })
+    .forEach(function(cl){
+      var opt = document.createElement('option');
+      opt.value = cl.id;
+      opt.textContent = (cl.clienteId||cl.tipo)+' - '+cl.nome;
+      if(cl.id===atual) opt.selected=true;
+      sel.appendChild(opt);
+    });
+}
+
+function limparServico(){
+  var ids=['sv-cliente','sv-tipo','sv-inicio','sv-prazo','sv-obs','sv-transf-det','sv-status'];
+  ids.forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  var box=document.getElementById('sv-cli-info'); if(box) box.style.display='none';
+  var wrap=document.getElementById('sv-transf-wrap'); if(wrap) wrap.style.display='none';
+}
+
+function salvarServico(){
+  var cliId = document.getElementById('sv-cliente').value;
+  var tipo  = document.getElementById('sv-tipo').value;
+  if(!cliId){ toast('Selecione um cliente','err'); return; }
+  if(!tipo){  toast('Selecione o tipo de servico','err'); return; }
+  var det = tipo==='TRANSF' ? (document.getElementById('sv-transf-det').value.trim()) : '';
+  if(tipo==='TRANSF' && !det){ toast('Informe os detalhes da transferencia','err'); return; }
+  var cl = _cls.find(function(c){ return c.id===cliId; })||{};
+  var s = {
+    id: uid(),
+    cliId: cliId,
+    cliNome: cl.nome||'',
+    cliCodigo: cl.clienteId||cl.tipo||'',
+    tipo: tipo,
+    nomeServico: NOMES_SERV[tipo]+(det?' - '+det:''),
+    detalhe: det,
+    inicio: document.getElementById('sv-inicio').value || isoHoje(),
+    prazo:  document.getElementById('sv-prazo').value,
+    obs:    document.getElementById('sv-obs').value,
+    status: (document.getElementById('sv-status')||{value:'aguardando_cli'}).value,
+    criado: new Date().toISOString()
+  };
+  _servs.unshift(s);
+  saveServicos();
+  enviarGAS(s, 'INSERT', 'Servicos');
+  toast('Servico salvo para '+cl.nome.split(' ')[0]+'!','ok');
+  limparServico();
+  renderServicos();
+}
+
+function renderServicos(){
+  var div=document.getElementById('lista-servicos'); if(!div) return;
+  var q=((document.getElementById('srch-sv')||{value:''}).value).toLowerCase();
+  var lista=_servs.filter(function(s){
+    if(!q) return true;
+    return (s.cliNome+s.nomeServico+s.cliCodigo).toLowerCase().indexOf(q)>=0;
+  });
+  if(!lista.length){
+    div.innerHTML='<div class="vazio"><div class="vazio-ic">&#128193;</div><div class="vazio-tx">Nenhum servico cadastrado</div></div>';
+    return;
+  }
+  div.innerHTML='';
+  lista.forEach(function(s){
+    var el=document.createElement('div');
+    el.style.cssText='background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);padding:13px 15px;margin-bottom:8px';
+    var stObj = getStatus(s.status);
+    var stCor = stObj.cor;
+    var stBg  = stObj.bg;
+    var stTxt = stObj.l;
+    el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+      +'<div style="flex:1">'
+      +'<div style="font-size:14px;font-weight:700">'+s.nomeServico+'</div>'
+      +'<div style="font-size:12px;color:var(--dim);margin-top:3px">'+s.cliCodigo+' &middot; '+s.cliNome
+      +(s.prazo?' &middot; Prazo: '+fmtData(s.prazo):'')+'</div>'
+      +(s.obs?'<div style="font-size:12px;color:var(--dim);font-style:italic;margin-top:2px">'+s.obs+'</div>':'')
+      +'</div>'
+      +'<span style="padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;background:'+stBg+';color:'+stCor+';border:1px solid '+stCor+'33">'+stTxt+'</span>'
+      +'</div>'
+      +'<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">'
+      +'<button class="btn b-gold b-xs" data-alt="'+s.id+'">&#9998; Status</button>'
+      +'<button class="btn b-red b-xs" data-del-sv="'+s.id+'">&#128465;</button>'
+      +'</div>';
+    el.addEventListener('click',function(e){
+      var btn=e.target.closest('[data-alt]');
+      if(btn){ alterarStatus(btn.getAttribute('data-alt')); return; }
+      var bd=e.target.closest('[data-del-sv]');
+      if(bd){ excluirServico(bd.getAttribute('data-del-sv')); }
+    });
+    div.appendChild(el);
+  });
+}
+
+function alterarStatus(id){
+  var s=_servs.find(function(x){ return x.id===id; }); if(!s) return;
+  var opts = STATUS_SERV.map(function(st){
+    return st.v+(s.status===st.v?' (atual)':'');
+  });
+  var lista = STATUS_SERV.map(function(st,i){ return (i+1)+'. '+st.l; }).join('\n');
+  var resp = prompt('Novo status para:\n'+s.nomeServico+'\n\n'+lista+'\n\nDigite o numero:');
+  if(!resp) return;
+  var idx = parseInt(resp,10)-1;
+  if(idx<0 || idx>=STATUS_SERV.length){ toast('Numero invalido','err'); return; }
+  s.status = STATUS_SERV[idx].v;
+  s.atualizado = isoHoje();
+  saveServicos(); renderServicos();
+  enviarGAS(s, 'UPDATE', 'Servicos');
+  toast('Status: '+STATUS_SERV[idx].l,'ok');
+}
+
+function excluirServico(id){
+  if(!confirm('Excluir este servico?')) return;
+  _servs=_servs.filter(function(x){ return x.id!==id; });
+  saveServicos(); renderServicos(); toast('Removido','ok');
+}
+
+function fmtData(d){
+  if(!d) return '';
+  var p=d.split('-');
+  return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : d;
+}
 
 // =========== INIT ===========
 loadAll();
+loadServicos();
 atualizarStats();
 tick(); setInterval(tick,1000);
 rotFrase(); setInterval(rotFrase,15000);
