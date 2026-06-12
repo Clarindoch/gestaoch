@@ -1911,6 +1911,8 @@ function loadServicos(){
     }
   }
 }
+function saveServicos(){ localStorage.setItem(KS, JSON.stringify(_servs)); }
+
 
 var NOMES_SERV = {
   'CR':'CR - Certificado de Registro',
@@ -1954,23 +1956,31 @@ function preencherSelectCliente(){
 }
 
 function limparServico(){
-  var ids=['sv-cliente','sv-tipo','sv-inicio','sv-prazo','sv-obs','sv-transf-det','sv-status'];
+  var ids=['sv-cli-busca','sv-cliente','sv-tipo','sv-inicio','sv-prazo','sv-obs','sv-transf-det','sv-status'];
   ids.forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
   var box=document.getElementById('sv-cli-info'); if(box) box.style.display='none';
   var wrap=document.getElementById('sv-transf-wrap'); if(wrap) wrap.style.display='none';
+  _servEditId=null; _servCliId=null;
 }
 
 function salvarServico(){
-  var cliId = document.getElementById('sv-cliente').value;
-  var tipo  = document.getElementById('sv-tipo').value;
+  var cliId = (document.getElementById('sv-cliente')||{value:''}).value;
+  var tipo  = (document.getElementById('sv-tipo')||{value:''}).value;
   if(!cliId){ toast('Selecione um cliente','err'); return; }
   if(!tipo){  toast('Selecione o tipo de servico','err'); return; }
-  var det = tipo==='TRANSF' ? (document.getElementById('sv-transf-det').value.trim()) : '';
+  var det = tipo==='TRANSF' ? ((document.getElementById('sv-transf-det')||{value:''}).value.trim()) : '';
   if(tipo==='TRANSF' && !det){ toast('Informe os detalhes da transferencia','err'); return; }
   var cl = _cls.find(function(c){ return c.id===cliId; })||{};
-  var proto = proximoProtocolo(cl.tipo||'CH', tipo);
+
+  // Se está editando, manter id e protocolo originais
+  var isNovoSv = !_servEditId;
+  var svId = _servEditId || uid();
+  var sExist = _servs.find(function(x){ return x.id===svId; }) || {};
+  var proto = isNovoSv ? proximoProtocolo(cl.tipo||'CH', tipo) : (sExist.protocolo || proximoProtocolo(cl.tipo||'CH', tipo));
+
+  var svStatus = (document.getElementById('sv-status')||{value:'aguardando_cli'}).value;
   var s = {
-    id: uid(),
+    id: svId,
     protocolo: proto,
     cliId: cliId,
     cliNome: cl.nome||'',
@@ -1979,18 +1989,35 @@ function salvarServico(){
     tipo: tipo,
     nomeServico: NOMES_SERV[tipo]+(det?' - '+det:''),
     detalhe: det,
-    inicio: document.getElementById('sv-inicio').value || isoHoje(),
-    prazo:  document.getElementById('sv-prazo').value,
-    obs:    document.getElementById('sv-obs').value,
-    status: (document.getElementById('sv-status')||{value:'aguardando_cli'}).value,
-    criado: new Date().toISOString()
+    inicio: (document.getElementById('sv-inicio')||{value:''}).value || isoHoje(),
+    prazo:  (document.getElementById('sv-prazo')||{value:''}).value,
+    obs:    (document.getElementById('sv-obs')||{value:''}).value,
+    status: isNovoSv ? svStatus : (sExist.status||svStatus),
+    ultimoVisto: isNovoSv ? isoHoje() : (sExist.ultimoVisto||isoHoje()),
+    dataProtocolo: sExist.dataProtocolo||'',
+    criado: isNovoSv ? new Date().toISOString() : (sExist.criado||new Date().toISOString()),
+    atualizado: isoHoje()
   };
-  _servs.unshift(s);
+
+  if(isNovoSv){
+    _servs.unshift(s);
+    enviarGAS(dadosParaMaiusculo(s), 'INSERT', 'Servicos');
+    toast('Servico criado: '+proto,'ok');
+  } else {
+    var idxSv=_servs.findIndex(function(x){return x.id===svId;});
+    if(idxSv>=0) _servs[idxSv]=s;
+    enviarGAS(dadosParaMaiusculo(s), 'UPSERT', 'Servicos');
+    toast('Servico atualizado: '+proto,'ok');
+  }
+
+  _servEditId = null;
   saveServicos();
-  enviarGAS(dadosParaMaiusculo(s), 'INSERT', 'Servicos');
-  toast('Servico salvo para '+cl.nome.split(' ')[0]+'!','ok');
-  limparServico();
   renderServicos();
+  renderAlertas();
+  limparServico();
+
+  // Se veio do detalhe do cliente, voltar para ele
+  if(_editId) setTimeout(function(){ verCliente(_editId); },300);
 }
 
 function renderServicos(){
