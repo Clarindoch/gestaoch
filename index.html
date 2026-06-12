@@ -358,55 +358,7 @@ select.inp option{background:#fff}
     <div class="sec">&#128221; Observacoes</div>
     <textarea class="inp inp-ta" id="f-obs" placeholder="Observacoes gerais..." oninput="U(this)"></textarea>
   </div>
-  <div class="card">
-    <div class="sec">&#128193; Primeiro Servico <span style="font-weight:400;font-size:10px;color:var(--muted);text-transform:none">(opcional — pode adicionar depois)</span></div>
-    <div class="fg c2">
-      <div class="field s2">
-        <label>Servico</label>
-        <select class="inp" id="f-sv-tipo" onchange="onPrimServTipo()">
-          <option value="">-- Nenhum por enquanto --</option>
-          <optgroup label="Armamento">
-            <option value="CR">CR - Certificado de Registro</option>
-            <option value="RCR">Renovacao de Certificado de Registro</option>
-            <option value="AC">Autorizacao de Compra</option>
-            <option value="CRAF">CRAF - Certificado de Registro de Arma de Fogo</option>
-            <option value="RCRAF">Renovacao de CRAF</option>
-            <option value="GT">Guia de Trafego</option>
-            <option value="TRANSF">Transferencia</option>
-          </optgroup>
-        </select>
-      </div>
-      <div class="field s2" id="f-sv-transf-wrap" style="display:none">
-        <label>Detalhes da Transferencia</label>
-        <input class="inp" id="f-sv-transf" placeholder="Ex: Transferencia pistola 9mm" oninput="U(this)">
-      </div>
-      <div class="field">
-        <label>Data de Inicio</label>
-        <input class="inp" id="f-sv-inicio" type="date">
-      </div>
-      <div class="field">
-        <label>Prazo / Previsao</label>
-        <input class="inp" id="f-sv-prazo" type="date">
-      </div>
-      <div class="field s2">
-        <label>Status Inicial</label>
-        <select class="inp" id="f-sv-status">
-          <option value="aguardando_cli">Aguardando Documentacao do Cliente</option>
-          <option value="protocolado">Protocolado</option>
-          <option value="pronto_analise">Pronto para Analise</option>
-          <option value="em_analise">Em Analise</option>
-          <option value="deferido">Deferido</option>
-          <option value="indeferido">Indeferido</option>
-          <option value="restituido">Restituido</option>
-          <option value="restituido_doc">Restituido - Aguardando Documento</option>
-        </select>
-      </div>
-      <div class="field s2">
-        <label>Observacoes</label>
-        <textarea class="inp inp-ta" id="f-sv-obs" placeholder="Observacoes do servico..." oninput="U(this)"></textarea>
-      </div>
-    </div>
-  </div>
+
   <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:28px">
     <button class="btn b-out" onclick="cancelarEdicao()">Cancelar</button>
     <button class="btn b-green" onclick="salvar()">&#128190; Salvar Cliente</button>
@@ -1103,9 +1055,7 @@ function limparForm(){
    'f-end','f-cidade','f-cep','f-pnome','f-pcpf','f-prg',   'f-end2','f-cidade2','f-cep2','f-obs'].forEach(function(id){ set(id,''); });
   set('f-tipo','CH');
 
-  var fsv = document.getElementById('f-sv-tipo'); if(fsv) fsv.value='';
-  ['f-sv-inicio','f-sv-prazo','f-sv-obs','f-sv-transf'].forEach(function(id){ set(id,''); });
-  var fw = document.getElementById('f-sv-transf-wrap'); if(fw) fw.style.display='none';
+
   _editId = null;
   set('cad-tit','+ Novo Cliente');
   var bs = document.getElementById('btn-salvar'); if(bs) bs.textContent = 'Salvar Cliente';
@@ -1200,32 +1150,6 @@ function salvar(){
   saveClientes();
   enviarGAS(dadosParaMaiusculo(d), isNovo?'INSERT':'UPDATE');
 
-  // Primeiro serviço
-  if(isNovo){
-    var fsvTipo = (document.getElementById('f-sv-tipo')||{value:''}).value;
-    if(fsvTipo){
-      var fsvDet = fsvTipo==='TRANSF'?(document.getElementById('f-sv-transf')||{value:''}).value:'';
-      var proto = proximoProtocolo(tipo, fsvTipo);
-      var sv = {
-        id: uid(),
-        protocolo: proto,
-        cliId: id,
-        cliNome: nome,
-        cliCodigo: cliId,
-        tipo: fsvTipo,
-        nomeServico: NOMES_SERV[fsvTipo]+(fsvDet?' - '+fsvDet:''),
-        detalhe: fsvDet,
-        inicio: (document.getElementById('f-sv-inicio')||{value:''}).value || isoHoje(),
-        prazo:  (document.getElementById('f-sv-prazo')||{value:''}).value,
-        obs:    (document.getElementById('f-sv-obs')||{value:''}).value,
-        status: (document.getElementById('f-sv-status')||{value:'aguardando_cli'}).value,
-        criado: new Date().toISOString()
-      };
-      _servs.unshift(sv);
-      saveServicos();
-      enviarGAS(sv,'INSERT','Servicos');
-    }
-  }
 
   toast((isNovo?'Cadastrado':'Atualizado')+': '+d.nome.split(' ')[0],'ok');
   limparForm();
@@ -1999,11 +1923,6 @@ var NOMES_SERV = {
 };
 
 
-function onPrimServTipo(){
-  var v = document.getElementById('f-sv-tipo').value;
-  var w = document.getElementById('f-sv-transf-wrap');
-  if(w) w.style.display = v==='TRANSF'?'block':'none';
-}
 function onCliSel(){
   var id = document.getElementById('sv-cliente').value;
   var box = document.getElementById('sv-cli-info');
