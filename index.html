@@ -172,6 +172,10 @@ select.inp option{background:#fff}
 <div id="topbar">
   <div class="tb-brand">Gestao <span>CH</span> <span style="font-size:13px;font-weight:400;color:var(--muted)">Premium</span></div>
   <span class="tb-badge tb-cnt" id="tb-count">0 clientes</span>
+  <button id="btn-sync-top" onclick="syncCompleto()" title="Sincronizar com planilha"
+    style="background:var(--green2);color:var(--green);border:1px solid #a7d4bb;border-radius:99px;padding:3px 12px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px">
+    &#128260; Sync
+  </button>
   <span class="tb-badge tb-clk" id="relogio">--:--:--</span>
 </div>
 
@@ -2121,6 +2125,7 @@ function marcarVisto(svId){
   renderAlertas();
   renderServicos();
   enviarGAS(dadosParaMaiusculo(s),'UPDATE','Servicos');
+  setTimeout(function(){ moverParaFinal(s.cliId); renderAgendaHome(); },150);
   toast('&#128065; Visto: '+(s.protocolo||s.nomeServico)+' — '+(cl?cl.nome.split(' ')[0]:''),'ok');
 }
 
@@ -3394,13 +3399,7 @@ function renderAgendaHome(){
 
 var _agCliAtual = null;
 
-// Interceptar marcarVisto para mover cliente pro final
-var _marcarVistoOrig = marcarVisto;
-function marcarVisto(svId){
-  var s=_servs.find(function(x){ return x.id===svId; });
-  _marcarVistoOrig(svId);
-  if(s) setTimeout(function(){ moverParaFinal(s.cliId); renderAgendaHome(); },200);
-}
+// marcarVisto unificada acima
 
 
 // =========== MODAL VISTO ===========
@@ -3482,6 +3481,49 @@ window.addEventListener('load',function(){
   var mv=document.getElementById('modal-visto');
   if(mv) mv.addEventListener('click',function(e){ if(e.target===this) fecharModalVisto(); });
 });
+
+
+function syncCompleto(){
+  if(!_gasUrl){ toast('Configure a URL do GAS primeiro em Config','err'); return; }
+  var btn=document.getElementById('btn-sync-top');
+  if(btn){ btn.textContent='&#8987; Sincronizando...'; btn.disabled=true; }
+
+  var total=_cls.length+_servs.length;
+  if(!total){ toast('Nenhum dado para sincronizar','warn'); if(btn){btn.textContent='&#128260; Sync';btn.disabled=false;} return; }
+
+  toast('Sincronizando '+_cls.length+' clientes e '+_servs.length+' servicos...','warn');
+  var done=0, erros=0;
+
+  function fim(){
+    if(btn){ btn.textContent='&#128260; Sync'; btn.disabled=false; }
+    if(erros===0) toast('&#10003; Sincronizado! '+done+' registros','ok');
+    else toast('Concluido com '+erros+' erro(s)','warn');
+  }
+
+  // Sincronizar clientes
+  _cls.forEach(function(cl){
+    var p='acao=INSERT&'+Object.keys(dadosParaMaiusculo(cl)).map(function(k){
+      return encodeURIComponent(k)+'='+encodeURIComponent(dadosParaMaiusculo(cl)[k]||'');
+    }).join('&');
+    fetch(_gasUrl+'?'+p)
+      .then(function(){ done++; if(done===total) fim(); })
+      .catch(function(){ done++; erros++; if(done===total) fim(); });
+  });
+
+  // Sincronizar serviços
+  _servs.forEach(function(s){
+    var sd=dadosParaMaiusculo(s);
+    var p='acao=INSERT&sheet=Servicos&'+Object.keys(sd).map(function(k){
+      return encodeURIComponent(k)+'='+encodeURIComponent(sd[k]||'');
+    }).join('&');
+    fetch(_gasUrl+'?'+p)
+      .then(function(){ done++; if(done===total) fim(); })
+      .catch(function(){ done++; erros++; if(done===total) fim(); });
+  });
+
+  // Enviar fila offline pendente
+  if(_filaSync.length) enviarFilaSync();
+}
 
 // =========== INIT ===========
 loadAll();
