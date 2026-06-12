@@ -998,6 +998,24 @@ function jsonErr(msg) {
 </div>
 
 <script>
+// =========== STATUS DOS SERVIÇOS ===========
+var STATUS_SERV = [
+  {v:'aguardando_cli',   l:'Aguardando Documentacao do Cliente', cor:'#b45309', bg:'#fef3c7'},
+  {v:'protocolado',      l:'Protocolado',                        cor:'#1a5fa8', bg:'#e8f0fa'},
+  {v:'pronto_analise',   l:'Pronto para Analise',                cor:'#6d28d9', bg:'#ede9fe'},
+  {v:'em_analise',       l:'Em Analise',                         cor:'#0369a1', bg:'#e0f2fe'},
+  {v:'deferido',         l:'Deferido',                           cor:'#1e7a48', bg:'#e6f5ee'},
+  {v:'indeferido',       l:'Indeferido',                         cor:'#c0392b', bg:'#fdecea'},
+  {v:'restituido',       l:'Restituido',                         cor:'#b8902a', bg:'#faf3e0'},
+  {v:'restituido_doc',   l:'Restituido - Aguardando Documento',  cor:'#92400e', bg:'#fef3c7'}
+];
+
+function getStatus(v){
+  return STATUS_SERV.find(function(s){ return s.v===v; }) ||
+         {v:v, l:v||'Sem status', cor:'var(--dim)', bg:'var(--bg)'};
+}
+
+
 // =========== CONFIG ===========
 console.log("SCRIPT CARREGADO OK");
 var KC = 'gch_cli_v15';
@@ -1043,7 +1061,7 @@ _gasUrl = localStorage.getItem('gch_gas')||'';
   }catch(e){}
 }
 function saveClientes(){ localStorage.setItem(KC, JSON.stringify(_cls)); atualizarStats(); }
-function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function uid(){ return Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8); }
 function hoje(){ return new Date().toLocaleDateString('pt-BR'); }
 function isoHoje(){ return new Date().toISOString().slice(0,10); }
 
@@ -3060,13 +3078,25 @@ function abrirEditarServico(svId, cliId){
 var _servEditId = null;
 var _servCliId  = null;
 
+function formatarDataParaPlanilha(v){
+  if(!v) return '';
+  if(/^\d{2}\/\d{2}\/\d{4}$/.test(v)) return v;
+  if(/^\d{4}-\d{2}-\d{2}/.test(String(v))){
+    var p=String(v).split('T')[0].split('-');
+    return p[2]+'/'+p[1]+'/'+p[0];
+  }
+  return String(v);
+}
+
 function dadosParaMaiusculo(obj){
-  // Campos que NAO devem ser alterados (GOV.BR — senha como digitada)
   var naoAlterar = ['gsenha','g2fa','gov_senha','gov_2fa','id','cliId','protocolo','pastaUrl','pastaId'];
+  var camposData = ['nascimento','criado','atualizado','inicio','prazo','dataProtocolo','ultimoVisto','gruComunicada','finalizado'];
   var novo = {};
   Object.keys(obj).forEach(function(k){
     var v = obj[k];
-    if(typeof v === 'string' && naoAlterar.indexOf(k) === -1 && v){
+    if(camposData.indexOf(k) >= 0){
+      novo[k] = formatarDataParaPlanilha(String(v||''));
+    } else if(typeof v === 'string' && naoAlterar.indexOf(k) === -1 && v){
       novo[k] = v.toUpperCase();
     } else {
       novo[k] = v;
@@ -3074,7 +3104,6 @@ function dadosParaMaiusculo(obj){
   });
   return novo;
 }
-
 // =========== MODAL EDITAR SERVIÇO ===========
 function abrirEditarSv(svId){
   var s=_servs.find(function(x){ return x.id===svId; }); if(!s) return;
@@ -3633,128 +3662,155 @@ function syncCompleto(){
 
 // =========== IMPORTAR DA PLANILHA AO INICIAR ===========
 function importarDaPlanilha(){
-  if(!_gasUrl) return; // sem URL configurada, usa só local
-  var btn = document.getElementById('btn-sync-top');
+  if(!_gasUrl){
+    toast('Configure a URL do GAS primeiro em Config','err');
+    return;
+  }
+  toast('Importando da planilha...','warn');
 
   // Buscar clientes
   fetch(_gasUrl+'?acao=GET_ALL&sheet=Clientes')
     .then(function(r){ return r.json(); })
     .then(function(res){
-      if(!res.ok || !res.data || !res.data.clientes) return;
-      var remotos = res.data.clientes;
-      if(!remotos.length) return;
+      if(!res.ok || !res.data) return;
+      var remotos = res.data.clientes || res.data || [];
+      if(!remotos.length){ toast('Nenhum cliente na planilha','warn'); return; }
 
-      // Mesclar: remoto prevalece sobre local se tiver ID igual
-      // Adicionar remotos que não existem no local
-      var atualizados = 0;
+      var novos = 0, atualizados = 0;
       remotos.forEach(function(rem){
-        if(!rem.id && !rem.ID) return;
-        var id = rem.id || rem.ID || '';
+        // Normalizar chaves (planilha pode ter maiúsculo)
+        var r = {};
+        Object.keys(rem).forEach(function(k){ r[k.toLowerCase().replace(/ /g,'_')] = rem[k]; });
+
+        // ID interno (coluna ID/id) e ID visível (CLIENTE_ID/cliente_id)
+        var id         = String(r.id || r.ID || '').trim();
+        var clienteId  = String(r.cliente_id || r.clienteid || r.clienteId || '').trim();
+        var nome       = String(r.nome || r.NOME || '').trim();
+        if(!id || !nome) return;
+
         var idxLocal = _cls.findIndex(function(c){ return c.id===id; });
-        // Converter chaves para minúsculo
-        var clNorm = {};
-        Object.keys(rem).forEach(function(k){ clNorm[k.toLowerCase()]=rem[k]; });
-        if(idxLocal>=0){
-          // Atualiza local com dados da planilha
-          Object.keys(clNorm).forEach(function(k){
-            if(clNorm[k]) _cls[idxLocal][k]=clNorm[k];
-          });
-        } else {
-          // Novo cliente vindo da planilha
-          _cls.push({
-            id:         clNorm.id||uid(),
-            seq:        parseInt(clNorm.seq||0,10),
-            clienteId:  clNorm.cliente_id||clNorm.clienteid||'',
-            tipo:       clNorm.tipo||'CH',
-            nome:       clNorm.nome||'',
-            cpf:        clNorm.cpf||'',
-            rg:         clNorm.rg||'',
-            orgao:      clNorm.orgao||'',
-            nascimento: clNorm.nascimento||'',
-            naturalidade:clNorm.naturalidade||'',
-            estado_civil:clNorm.estado_civil||'',
-            profissao:  clNorm.profissao||'',
-            pai:        clNorm.pai||'',
-            mae:        clNorm.mae||'',
-            titulo:     clNorm.titulo||'',
-            telefone:   clNorm.telefone||'',
-            email:      clNorm.email||'',
-            endereco:   clNorm.endereco||'',
-            cidade:     clNorm.cidade||'',
-            cep:        clNorm.cep||'',
-            prop_nome:  clNorm.prop_nome||'',
-            prop_cpf:   clNorm.prop_cpf||'',
-            prop_rg:    clNorm.prop_rg||'',
-            prop_orgao: clNorm.prop_orgao||'',
-            endereco2:  clNorm.endereco2||'',
-            cidade2:    clNorm.cidade2||'',
-            cep2:       clNorm.cep2||'',
-            gsenha:     clNorm.gsenha||clNorm.gov_senha||'',
-            obs:        clNorm.obs||'',
-            criado:     clNorm.criado||hoje(),
-            atualizado: clNorm.atualizado||hoje()
+        var cl = {
+          id:          id,
+          seq:         parseInt(r.seq||r.SEQ||0,10) || 0,
+          clienteId:   clienteId,
+          tipo:        String(r.tipo||r.TIPO||'CH').trim(),
+          nome:        nome,
+          cpf:         String(r.cpf||r.CPF||'').trim(),
+          rg:          String(r.rg||r.RG||'').trim(),
+          orgao:       String(r.orgao||r.ORGAO||'').trim(),
+          nascimento:  formatarDataParaPlanilha(String(r.nascimento||r.NASCIMENTO||'').trim()),
+          naturalidade:String(r.naturalidade||r.NATURALIDADE||'').trim(),
+          estado_civil:String(r.estado_civil||r.ESTADO_CIVIL||'').trim(),
+          profissao:   String(r.profissao||r.PROFISSAO||'').trim(),
+          pai:         String(r.pai||r.PAI||'').trim(),
+          mae:         String(r.mae||r.MAE||'').trim(),
+          titulo:      String(r.titulo||r.TITULO||'').trim(),
+          telefone:    String(r.telefone||r.TELEFONE||'').trim(),
+          email:       String(r.email||r.EMAIL||'').trim(),
+          endereco:    String(r.endereco||r.ENDERECO||'').trim(),
+          cidade:      String(r.cidade||r.CIDADE||'').trim(),
+          cep:         String(r.cep||r.CEP||'').trim(),
+          prop_nome:   String(r.prop_nome||r.PROP_NOME||'').trim(),
+          prop_cpf:    String(r.prop_cpf||r.PROP_CPF||'').trim(),
+          prop_rg:     String(r.prop_rg||r.PROP_RG||'').trim(),
+          prop_orgao:  String(r.prop_orgao||r.PROP_ORGAO||'').trim(),
+          endereco2:   String(r.endereco2||r.ENDERECO2||'').trim(),
+          cidade2:     String(r.cidade2||r.CIDADE2||'').trim(),
+          cep2:        String(r.cep2||r.CEP2||'').trim(),
+          gsenha:      String(r.gsenha||r.GSENHA||r.gov_senha||'').trim(),
+          obs:         String(r.obs||r.OBS||'').trim(),
+          criado:      formatarDataParaPlanilha(String(r.criado||r.CRIADO||hoje()).trim()),
+          atualizado:  String(r.atualizado||r.ATUALIZADO||hoje()).trim()
+        };
+
+        if(idxLocal >= 0){
+          // Atualizar apenas campos não vazios
+          Object.keys(cl).forEach(function(k){
+            if(cl[k]) _cls[idxLocal][k] = cl[k];
           });
           atualizados++;
+        } else {
+          _cls.push(cl);
+          novos++;
         }
       });
-      if(atualizados>0){
+
+      if(novos > 0 || atualizados > 0){
+        // Corrigir seq/clienteId duplicados antes de salvar
+        var contadores={};
+        var ordenados=_cls.slice().sort(function(a,b){
+          return (String(a.criado)||'').localeCompare(String(b.criado)||'');
+        });
+        ordenados.forEach(function(cl){
+          var t=cl.tipo||'CH';
+          if(!contadores[t]) contadores[t]=1;
+          var i2=_cls.findIndex(function(c){return c.id===cl.id;});
+          if(i2>=0){
+            _cls[i2].seq=contadores[t];
+            _cls[i2].clienteId=gerarClienteId(t,contadores[t]);
+          }
+          contadores[t]++;
+        });
         saveClientes();
+        atualizarStats();
         renderLista();
         renderInicio();
         renderAgendaHome();
-        atualizarStats();
-        toast('&#128260; '+atualizados+' cliente(s) importado(s) da planilha!','ok');
+        toast('Planilha: +'+novos+' novo(s), '+atualizados+' atualizado(s)','ok');
+      } else {
+        toast('Todos os clientes ja estao sincronizados','ok');
       }
     })
-    .catch(function(){ /* sem internet ou erro, usa local */ });
+    .catch(function(e){
+      toast('Erro ao conectar com planilha','err');
+      console.log('Erro importar:', e);
+    });
 
-  // Buscar serviços
+  // Buscar servicos
   fetch(_gasUrl+'?acao=GET_ALL&sheet=Servicos')
     .then(function(r){ return r.json(); })
     .then(function(res){
-      if(!res.ok || !res.data || !res.data.clientes) return;
-      var remotos = res.data.clientes; // GET_ALL retorna como 'clientes'
-      if(!remotos.length) return;
-      var novos=0;
+      if(!res.ok || !res.data) return;
+      var remotos = res.data.clientes || res.data || [];
+      var novos = 0;
       remotos.forEach(function(rem){
-        var norm={};
-        Object.keys(rem).forEach(function(k){ norm[k.toLowerCase()]=rem[k]; });
-        var id=norm.id||'';
+        var r = {};
+        Object.keys(rem).forEach(function(k){ r[k.toLowerCase().replace(/ /g,'_')] = rem[k]; });
+        var id = String(r.id||'').trim();
         if(!id) return;
-        var existe=_servs.some(function(s){ return s.id===id; });
-        if(!existe){
-          _servs.push({
-            id:           id,
-            protocolo:    norm.protocolo||'',
-            cliId:        norm.cli_id||norm.cliid||'',
-            cliNome:      norm.cli_nome||norm.clinome||'',
-            cliCodigo:    norm.cli_codigo||norm.clicódigo||'',
-            tipoCliente:  norm.tipo_cliente||norm.tipocliente||'',
-            tipo:         norm.tipo_servico||norm.tiposervico||norm.tipo||'',
-            nomeServico:  norm.nome_servico||norm.nomeservico||'',
-            detalhe:      norm.detalhe||'',
-            inicio:       norm.inicio||'',
-            prazo:        norm.prazo||'',
-            status:       norm.status||'aguardando_cli',
-            obs:          norm.obs||'',
-            dataProtocolo:norm.data_protocolo||norm.dataprotocolo||'',
-            ultimoVisto:  norm.ultimo_visto||norm.ultimovisto||'',
-            gruComunicada:norm.gru_comunicada||norm.grucomunicada||'',
-            criado:       norm.criado||'',
-            atualizado:   norm.atualizado||''
-          });
-          novos++;
-        }
+        if(_servs.some(function(s){ return s.id===id; })) return;
+        _servs.push({
+          id:           id,
+          protocolo:    String(r.protocolo||'').trim(),
+          cliId:        String(r.cli_id||r.cliid||'').trim(),
+          cliNome:      String(r.cli_nome||r.clinome||'').trim(),
+          cliCodigo:    String(r.cli_codigo||r.clicódigo||'').trim(),
+          tipoCliente:  String(r.tipo_cliente||r.tipocliente||'').trim(),
+          tipo:         String(r.tipo_servico||r.tiposervico||r.tipo||'').trim(),
+          nomeServico:  String(r.nome_servico||r.nomeservico||'').trim(),
+          detalhe:      String(r.detalhe||'').trim(),
+          inicio:       String(r.inicio||'').trim(),
+          prazo:        String(r.prazo||'').trim(),
+          status:       String(r.status||'aguardando_cli').trim(),
+          obs:          String(r.obs||'').trim(),
+          dataProtocolo:String(r.data_protocolo||r.dataprotocolo||'').trim(),
+          ultimoVisto:  String(r.ultimo_visto||r.ultimovisto||'').trim(),
+          gruComunicada:String(r.gru_comunicada||r.grucomunicada||'').trim(),
+          criado:       String(r.criado||'').trim(),
+          atualizado:   String(r.atualizado||'').trim()
+        });
+        novos++;
       });
       if(novos>0){
         saveServicos();
         renderServicos();
         renderAlertas();
-        toast('&#128193; '+novos+' servico(s) importado(s) da planilha!','ok');
+        toast('Servicos importados: +'+novos,'ok');
       }
     })
     .catch(function(){});
 }
+
 
 
 function varrerLocalStorage(){
