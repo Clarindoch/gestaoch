@@ -278,10 +278,7 @@ select.inp option{background:#fff}
           <option value="CH">&#127970; CH - Cursos e Consultorias</option>
           <option value="CTR">&#127942; CTR - Clube de Tiro</option>
         </select></div>
-      <div class="field" id="campo-id-wrap" style="display:none">
-        <label>ID do Cliente <span style="font-weight:400;color:var(--muted)">(editavel)</span></label>
-        <input class="inp" id="f-cliente-id" placeholder="Ex: CTR-001" oninput="this.value=this.value.toUpperCase()">
-      </div>
+
       <div class="field s2"><label>Nome Completo *</label>
         <input class="inp" id="f-nome" placeholder="Ex: JOAO SILVA SANTOS" oninput="U(this)"></div>
       <div class="field"><label>CPF</label>
@@ -1105,10 +1102,7 @@ function limparForm(){
    'f-civil','f-prof','f-pai','f-mae','f-titulo','f-tel','f-email',
    'f-end','f-cidade','f-cep','f-pnome','f-pcpf','f-prg',   'f-end2','f-cidade2','f-cep2','f-obs'].forEach(function(id){ set(id,''); });
   set('f-tipo','CH');
-  var wrap2=document.getElementById('campo-id-wrap');
-  if(wrap2) wrap2.style.display='none';
-  var fid2=document.getElementById('f-cliente-id');
-  if(fid2) fid2.value='';
+
   var fsv = document.getElementById('f-sv-tipo'); if(fsv) fsv.value='';
   ['f-sv-inicio','f-sv-prazo','f-sv-obs','f-sv-transf'].forEach(function(id){ set(id,''); });
   var fw = document.getElementById('f-sv-transf-wrap'); if(fw) fw.style.display='none';
@@ -1241,11 +1235,7 @@ function salvar(){
 // =========== EDITAR / EXCLUIR ===========
 function editarAtual(){
   var cl = _cls.find(function(c){ return c.id===_editId; }); if(!cl) return;
-  // Mostrar campo de ID ao editar
-  var wrap=document.getElementById('campo-id-wrap');
-  var fid=document.getElementById('f-cliente-id');
-  if(wrap) wrap.style.display='block';
-  if(fid) fid.value=cl.clienteId||'';
+
   var m = {
     'f-nome':cl.nome,'f-cpf':cl.cpf,'f-gsenha':cl.gsenha,    'f-rg':cl.rg,'f-orgao':cl.orgao,'f-nasc':cl.nascimento,
     'f-natural':cl.naturalidade,'f-civil':cl.estado_civil,'f-prof':cl.profissao,
@@ -1786,18 +1776,101 @@ function testarConexao(){
 }
 
 function sincronizarTudo(){
-  if(!_gasUrl){ toast('Configure a URL do GAS primeiro','err'); return; }
-  if(!_cls.length){ toast('Nenhum cliente para sincronizar','warn'); return; }
-  toast('Sincronizando '+_cls.length+' clientes...','warn');
-  var done=0, total=_cls.length;
-  _cls.forEach(function(cl){
-    var clUp=dadosParaMaiusculo(cl);
-    var p=Object.keys(clUp).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(clUp[k]||'');}).join('&');
-    fetch(_gasUrl+'?acao=INSERT&'+p)
-      .then(function(){ done++; if(done===total) toast('Sincronizacao concluida!','ok'); })
-      .catch(function(){ done++; if(done===total) toast('Concluido com erros','warn'); });
+  if(!_gasUrl){ toast('Configure a URL do GAS em Config','err'); return; }
+  toast('Buscando dados da planilha...','warn');
+
+  // 1. Primeiro busca o que há na planilha
+  fetch(_gasUrl+'?acao=GET_ALL&sheet=Clientes')
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+      var remotos = (res.ok && res.data) ? (res.data.clientes||res.data||[]) : [];
+
+      // 2. Mesclar planilha com local
+      remotos.forEach(function(rem){
+        var r={};
+        Object.keys(rem).forEach(function(k){ r[k.toLowerCase().replace(/ /g,'_')]=rem[k]; });
+        var id = String(r.id||'').trim();
+        var cpf = String(r.cpf||'').trim().replace(/\D/g,'');
+        if(!id) return;
+        // Verificar por ID ou por CPF (evita duplicar se mesmo cliente veio de dispositivo diferente)
+        var existe = _cls.some(function(c){
+          if(c.id===id) return true;
+          if(cpf && c.cpf && c.cpf.replace(/\D/g,'')===cpf) return true;
+          return false;
+        });
+        if(!existe){
+          _cls.push({
+            id:id, seq:parseInt(r.seq||0,10)||0,
+            clienteId: String(r.cliente_id||r.clienteid||'').trim(),
+            tipo:String(r.tipo||'CH').trim(), nome:String(r.nome||'').trim(),
+            cpf:String(r.cpf||'').trim(), rg:String(r.rg||'').trim(),
+            orgao:String(r.orgao||'').trim(),
+            nascimento:formatarDataParaPlanilha(String(r.nascimento||'').trim()),
+            naturalidade:String(r.naturalidade||'').trim(),
+            estado_civil:String(r.estado_civil||'').trim(),
+            profissao:String(r.profissao||'').trim(),
+            pai:String(r.pai||'').trim(), mae:String(r.mae||'').trim(),
+            titulo:String(r.titulo||'').trim(), telefone:String(r.telefone||'').trim(),
+            email:String(r.email||'').trim(), endereco:String(r.endereco||'').trim(),
+            cidade:String(r.cidade||'').trim(), cep:String(r.cep||'').trim(),
+            prop_nome:String(r.prop_nome||'').trim(), prop_cpf:String(r.prop_cpf||'').trim(),
+            prop_rg:String(r.prop_rg||'').trim(), prop_orgao:String(r.prop_orgao||'').trim(),
+            endereco2:String(r.endereco2||'').trim(), cidade2:String(r.cidade2||'').trim(),
+            cep2:String(r.cep2||'').trim(), gsenha:String(r.gsenha||'').trim(),
+            obs:String(r.obs||'').trim(),
+            criado:formatarDataParaPlanilha(String(r.criado||hoje()).trim()),
+            atualizado:hoje()
+          });
+        }
+      });
+
+      // Corrigir IDs após mesclar
+      recalcularIds();
+      saveClientes();
+      atualizarStats(); renderLista(); renderInicio(); renderAgendaHome();
+
+      // 3. Enviar local para planilha (UPSERT — não duplica)
+      var total=_cls.length, done=0, erros=0;
+      function fim(){
+        if(erros===0) toast('Sync completo! '+total+' clientes','ok');
+        else toast('Sync: '+erros+' erro(s)','warn');
+      }
+      if(!total){ fim(); return; }
+      _cls.forEach(function(cl,i){
+        setTimeout(function(){
+          var d=dadosParaMaiusculo(cl);
+          var qs='acao=UPSERT&sheet=Clientes&'+Object.keys(d).map(function(k){
+            return encodeURIComponent(k)+'='+encodeURIComponent(d[k]||'');
+          }).join('&');
+          fetch(_gasUrl+'?'+qs)
+            .then(function(){ done++; if(done===total) fim(); })
+            .catch(function(){ done++; erros++; if(done===total) fim(); });
+        }, i*300);
+      });
+    })
+    .catch(function(){
+      toast('Falha na conexao. Enviando dados locais...','warn');
+      syncSoEnviar();
+    });
+}
+
+function syncSoEnviar(){
+  // Fallback: só envia sem verificar planilha
+  if(!_cls.length){ toast('Sem dados para enviar','warn'); return; }
+  var total=_cls.length, done=0, erros=0;
+  _cls.forEach(function(cl,i){
+    setTimeout(function(){
+      var d=dadosParaMaiusculo(cl);
+      var qs='acao=UPSERT&sheet=Clientes&'+Object.keys(d).map(function(k){
+        return encodeURIComponent(k)+'='+encodeURIComponent(d[k]||'');
+      }).join('&');
+      fetch(_gasUrl+'?'+qs)
+        .then(function(){ done++; if(done===total) toast('Enviado! '+done+' registros','ok'); })
+        .catch(function(){ done++; erros++; });
+    }, i*300);
   });
 }
+
 
 function enviarGAS(d,acao,sheet){
   if(!_gasUrl) return;
@@ -3862,12 +3935,36 @@ function varrerLocalStorage(){
   }
 }
 
+
+function recalcularIds(){
+  // Recalcula seq e clienteId SÓ para quem não tem
+  // Não altera quem já tem ID definido
+  var contadores={};
+  // Pegar os maiores seq existentes por tipo
+  _cls.forEach(function(cl){
+    var t=cl.tipo||'CH';
+    var n=parseInt(cl.seq||0,10);
+    if(!contadores[t] || n>=contadores[t]) contadores[t]=n;
+  });
+  // Atribuir seq/clienteId apenas para quem não tem
+  _cls.forEach(function(cl){
+    if(!cl.seq || !cl.clienteId){
+      var t=cl.tipo||'CH';
+      if(!contadores[t]) contadores[t]=0;
+      contadores[t]++;
+      cl.seq=contadores[t];
+      cl.clienteId=gerarClienteId(t,contadores[t]);
+    }
+  });
+}
+
 // =========== INIT ===========
 loadAll();
 loadServicos();
 loadDocs();
 loadFila();
 loadAgenda();
+recalcularIds();
 atualizarStats();
 carregarAnotacao();
 // Importar da planilha após 2 segundos (deixa o sistema carregar primeiro)
