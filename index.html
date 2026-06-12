@@ -764,6 +764,7 @@ function jsonErr(msg) {
       <button class="btn b-gold b-sm" onclick="corrigirIdsRepetidos()">&#128295; Corrigir IDs Duplicados</button>
       <button class="btn b-blue b-sm" onclick="syncCompleto()">&#128260; Sincronizar Tudo</button>
       <button class="btn b-green b-sm" onclick="importarDaPlanilha();toast('Importando...','warn')">&#128229; Importar da Planilha</button>
+      <button class="btn b-gold b-sm" onclick="varrerLocalStorage()">&#128269; Recuperar Dados do Navegador</button>
     </div>
   </div>
 
@@ -1010,8 +1011,32 @@ var _users  = [{u:'clarindo',s:'helly1218'}];
 
 // =========== STORAGE ===========
 function loadAll(){
+  // Tenta a chave atual primeiro
   try{ _cls = JSON.parse(localStorage.getItem(KC)||'[]'); }catch(e){ _cls=[]; }
-  _gasUrl = localStorage.getItem('gch_gas')||'';
+
+  // Se não achou nada, tenta chaves de versões anteriores
+  if(!_cls.length){
+    var chavesAntigas = [
+      'gch_v15_clientes','gestao_ch_v13','gestao_ch_v15',
+      'gch_cli_v14','gch_clientes_v15','gestaoch_clientes',
+      'gch_cli','clientes_gestao_ch'
+    ];
+    for(var i=0;i<chavesAntigas.length;i++){
+      try{
+        var dados = JSON.parse(localStorage.getItem(chavesAntigas[i])||'[]');
+        if(dados && dados.length){
+          _cls = dados;
+          // Migrar para chave nova
+          localStorage.setItem(KC, JSON.stringify(_cls));
+          console.log('Dados migrados de: '+chavesAntigas[i]+' ('+_cls.length+' clientes)');
+          break;
+        }
+      }catch(e){}
+    }
+  }
+
+  // Mesma coisa para serviços
+_gasUrl = localStorage.getItem('gch_gas')||'';
   try{
     var a = JSON.parse(localStorage.getItem('gch_acesso')||'null');
     if(a && a.u && a.s) _users = [{u:a.u, s:a.s}];
@@ -1858,23 +1883,18 @@ function irServicosCliente(){
 var KS = 'gch_servicos_v16';
 var _servs = [];
 
-function loadServicos(){ try{ _servs=JSON.parse(localStorage.getItem(KS)||'[]'); }catch(e){ _servs=[]; } }
-function saveServicos(){ localStorage.setItem(KS, JSON.stringify(_servs)); }
-
-var STATUS_SERV = [
-  {v:'aguardando_cli',   l:'Aguardando Documentacao do Cliente', cor:'#b45309', bg:'#fef3c7'},
-  {v:'protocolado',      l:'Protocolado',                        cor:'#1a5fa8', bg:'#e8f0fa'},
-  {v:'pronto_analise',   l:'Pronto para Analise',                cor:'#6d28d9', bg:'#ede9fe'},
-  {v:'em_analise',       l:'Em Analise',                         cor:'#0369a1', bg:'#e0f2fe'},
-  {v:'deferido',         l:'Deferido',                           cor:'#1e7a48', bg:'#e6f5ee'},
-  {v:'indeferido',       l:'Indeferido',                         cor:'#c0392b', bg:'#fdecea'},
-  {v:'restituido',       l:'Restituido',                         cor:'#b8902a', bg:'#faf3e0'},
-  {v:'restituido_doc',   l:'Restituido - Aguardando Documento',  cor:'#92400e', bg:'#fef3c7'}
-];
-
-function getStatus(v){
-  return STATUS_SERV.find(function(s){ return s.v===v; }) ||
-         {v:v, l:v, cor:'var(--dim)', bg:'var(--bg)'};
+function loadServicos(){
+  try{ _servs = JSON.parse(localStorage.getItem(KS)||'[]'); }catch(e){ _servs=[]; }
+  // Tentar chaves antigas se não achou
+  if(!_servs.length){
+    var chavesAnt=['gch_servicos_v15','gestao_ch_v13_servicos','gch_servs','servicos_gestao_ch'];
+    for(var i=0;i<chavesAnt.length;i++){
+      try{
+        var d=JSON.parse(localStorage.getItem(chavesAnt[i])||'[]');
+        if(d&&d.length){ _servs=d; localStorage.setItem(KS,JSON.stringify(_servs)); break; }
+      }catch(e){}
+    }
+  }
 }
 
 var NOMES_SERV = {
@@ -3734,6 +3754,56 @@ function importarDaPlanilha(){
       }
     })
     .catch(function(){});
+}
+
+
+function varrerLocalStorage(){
+  // Varre TODAS as chaves do localStorage em busca de arrays de clientes
+  var encontrados = [];
+  try{
+    for(var i=0; i<localStorage.length; i++){
+      var key = localStorage.key(i);
+      if(!key) continue;
+      try{
+        var val = JSON.parse(localStorage.getItem(key)||'null');
+        if(Array.isArray(val) && val.length>0 && val[0] && val[0].nome && val[0].id){
+          encontrados.push({key:key, count:val.length, dados:val});
+        }
+      }catch(e){}
+    }
+  }catch(e){}
+
+  if(!encontrados.length){
+    toast('Nenhum dado encontrado no navegador','warn');
+    return;
+  }
+
+  // Mostrar o que encontrou e oferecer para importar
+  var msg = 'Dados encontrados no navegador:\n\n';
+  encontrados.forEach(function(e){
+    msg += e.key+': '+e.count+' cliente(s)\n';
+  });
+  msg += '\nDeseja importar todos?';
+
+  if(!confirm(msg)) return;
+
+  // Mesclar todos
+  var total = 0;
+  encontrados.forEach(function(e){
+    e.dados.forEach(function(cl){
+      if(!cl.id || !cl.nome) return;
+      var existe = _cls.some(function(c){ return c.id===cl.id; });
+      if(!existe){ _cls.push(cl); total++; }
+    });
+  });
+
+  if(total>0){
+    saveClientes();
+    renderLista(); renderInicio(); renderAgendaHome(); atualizarStats();
+    toast(total+' cliente(s) recuperado(s)!','ok');
+  } else {
+    toast('Nenhum cliente novo encontrado','warn');
+  }
 }
 
 // =========== INIT ===========
