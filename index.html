@@ -194,18 +194,46 @@ select.inp option{background:#fff}
 
 <!-- INICIO -->
 <div class="pg on" id="pg-inicio">
-  <div class="stats">
+  <!-- Stats -->
+  <div class="stats" style="grid-template-columns:repeat(4,1fr)">
     <div class="stat"><div class="stat-n" id="s-total">0</div><div class="stat-l">Total</div></div>
     <div class="stat"><div class="stat-n" id="s-ch" style="color:var(--blue)">0</div><div class="stat-l">CH</div></div>
     <div class="stat"><div class="stat-n" id="s-ctr" style="color:var(--green)">0</div><div class="stat-l">CTR</div></div>
+    <div class="stat"><div class="stat-n sn-red" id="s-alertas-count" style="color:var(--red)">0</div><div class="stat-l">Alertas</div></div>
   </div>
-  <div class="card" id="card-alertas-home" style="display:none">
-    <div class="sec" style="color:var(--red)">&#9888; Alertas Pendentes</div>
-    <div id="alertas-home"></div>
-    <div style="margin-top:10px">
-      <button class="btn b-out b-sm" onclick="ir('alertas')">Ver todos os alertas</button>
+
+  <!-- Aviso Sexta + Escala do dia -->
+  <div id="aviso-sexta-home" style="display:none;background:var(--green2);border:1.5px solid #a7d4bb;border-radius:var(--r2);padding:12px 16px;margin-bottom:12px;display:none;align-items:center;justify-content:space-between;gap:10px">
+    <div style="font-size:13px;color:var(--green);font-weight:700">&#128197; Sexta-feira — Hora do relatorio semanal!</div>
+    <button class="btn b-green b-sm" onclick="ir('relatorio')">Ver Relatorio</button>
+  </div>
+
+  <!-- Escala do dia (Ter/Qua/Qui) -->
+  <div id="card-escala" class="card" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="sec" style="margin:0;border:0;padding:0;color:var(--blue)">&#128197; <span id="escala-titulo">Clientes do Dia</span></div>
+      <button class="btn b-out b-xs" onclick="ir('alertas')">Ver todos</button>
     </div>
+    <div id="lista-escala"></div>
   </div>
+
+  <!-- Alertas urgentes na home -->
+  <div id="card-alertas-home" class="card" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="sec" style="margin:0;border:0;padding:0;color:var(--red)">&#128308; Urgente — Requer Atencao</div>
+      <button class="btn b-out b-xs" onclick="ir('alertas')">Ver todos</button>
+    </div>
+    <div id="alertas-home"></div>
+  </div>
+
+  <!-- Anotacoes rapidas -->
+  <div class="card">
+    <div class="sec">&#128221; Anotacoes Rapidas</div>
+    <textarea class="inp inp-ta" id="anotacoes" placeholder="Digite suas anotacoes aqui... (salvo automaticamente)"
+      oninput="salvarAnotacao()" style="min-height:90px;resize:vertical"></textarea>
+  </div>
+
+  <!-- Ultimos cadastros -->
   <div class="card">
     <div class="sec">Ultimos Cadastros</div>
     <div id="lista-ultimos"></div>
@@ -1141,33 +1169,113 @@ function ir(pg){
 }
 
 // =========== RENDER INICIO ===========
+
+// =========== TELA INICIAL COMPLETA ===========
+var DIAS_TRAB = [2,3,4]; // Ter=2, Qua=3, Qui=4
+
+function salvarAnotacao(){
+  var el=document.getElementById('anotacoes'); if(!el) return;
+  localStorage.setItem('gch_anotacao', el.value);
+}
+
+function carregarAnotacao(){
+  var el=document.getElementById('anotacoes'); if(!el) return;
+  el.value = localStorage.getItem('gch_anotacao')||'';
+}
+
+function calcularEscala(){
+  // Distribui clientes ativos igualmente entre Ter/Qua/Qui
+  // baseado no índice do cliente na lista
+  var hoje = new Date().getDay(); // 0=Dom...6=Sab
+  var nomeDia = {2:'Terca-feira',3:'Quarta-feira',4:'Quinta-feira'}[hoje];
+  if(!nomeDia) return null;
+
+  var ativos = _cls.filter(function(cl){ return clienteAtivo(cl.id); });
+  if(!ativos.length) return {dia:nomeDia, clientes:[]};
+
+  // Distribuir: cliente no índice % 3 == posição do dia
+  var posHoje = DIAS_TRAB.indexOf(hoje); // 0,1,2
+  var dodia = ativos.filter(function(cl,i){ return i % 3 === posHoje; });
+  return {dia:nomeDia, clientes:dodia};
+}
+
 function renderInicio(){
-  // Alertas no inicio
-  var als = calcularAlertas();
-  var cardAl = document.getElementById('card-alertas-home');
-  var divAl  = document.getElementById('alertas-home');
-  if(cardAl) cardAl.style.display = als.length ? 'block' : 'none';
-  if(divAl && als.length){
-    var top3 = als.slice(0,3);
-    divAl.innerHTML='';
-    top3.forEach(function(al){
-      var el=document.createElement('div');
-      var cor=al.tipo==='urgente'?'var(--red)':'#b45309';
-      el.style.cssText='padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center';
-      el.innerHTML='<div><div style="font-size:13px;font-weight:700">'+al.icone+' '+al.titulo+'</div>'
-        +'<div style="font-size:11px;color:'+cor+';margin-top:1px">'+al.msg+'</div></div>'
-        +'<span style="font-size:10px;padding:2px 7px;border-radius:99px;background:'+cor+';color:#fff;font-weight:800">'+al.prazo+'</span>';
-      divAl.appendChild(el);
-    });
-    if(als.length>3){
-      var mais=document.createElement('div');
-      mais.style.cssText='font-size:12px;color:var(--dim);margin-top:8px;text-align:center';
-      mais.textContent='+ '+(als.length-3)+' alerta(s) — clique em "Ver todos"';
-      divAl.appendChild(mais);
+  carregarAnotacao();
+
+  // Aviso sexta
+  var dh = new Date().getDay();
+  var avisoSexta = document.getElementById('aviso-sexta-home');
+  if(avisoSexta) avisoSexta.style.display = dh===5 ? 'flex' : 'none';
+
+  // Escala do dia
+  var escala = calcularEscala();
+  var cardEsc = document.getElementById('card-escala');
+  var listEsc = document.getElementById('lista-escala');
+  var tituloEsc = document.getElementById('escala-titulo');
+  if(cardEsc){
+    if(escala && escala.clientes.length){
+      cardEsc.style.display='block';
+      if(tituloEsc) tituloEsc.textContent = 'Clientes de Hoje — '+escala.dia+' ('+escala.clientes.length+')';
+      if(listEsc){
+        listEsc.innerHTML='';
+        escala.clientes.slice(0,5).forEach(function(cl){
+          var el2=document.createElement('div');
+          el2.style.cssText='padding:9px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;cursor:pointer';
+          var cor=cl.tipo==='CTR'?'var(--green)':'var(--blue)';
+          var servs=_servs.filter(function(s){return s.cliId===cl.id&&s.status!=='deferido'&&s.status!=='indeferido';});
+          el2.innerHTML='<div>'
+            +'<div style="font-size:13px;font-weight:700">'+cl.nome+'</div>'
+            +'<div style="font-size:11px;color:var(--dim);margin-top:2px">'+(cl.clienteId||cl.tipo)+' &middot; '+servs.length+' serv. ativo(s)</div>'
+            +'</div>'
+            +'<span style="font-size:11px;padding:2px 9px;border-radius:99px;background:'+cor+'22;color:'+cor+';font-weight:700">'+cl.tipo+'</span>';
+          el2.addEventListener('click',function(){ verCliente(cl.id); });
+          listEsc.appendChild(el2);
+        });
+        if(escala.clientes.length>5){
+          var mais=document.createElement('div');
+          mais.style.cssText='font-size:12px;color:var(--dim);text-align:center;padding:8px 0';
+          mais.textContent='+ '+(escala.clientes.length-5)+' clientes — clique em Ver todos';
+          listEsc.appendChild(mais);
+        }
+      }
+    } else {
+      cardEsc.style.display='none';
     }
   }
+
+  // Alertas urgentes
+  var als = calcularAlertas();
+  var urgentes = als.filter(function(a){ return a.tipo==='urgente'; });
+  var cardAl = document.getElementById('card-alertas-home');
+  var divAl  = document.getElementById('alertas-home');
+  var sAl    = document.getElementById('s-alertas-count');
+  if(sAl) sAl.textContent = als.length;
+  if(cardAl) cardAl.style.display = urgentes.length ? 'block' : 'none';
+  if(divAl && urgentes.length){
+    divAl.innerHTML='';
+    urgentes.slice(0,4).forEach(function(al){
+      var el3=document.createElement('div');
+      el3.style.cssText='padding:10px 12px;background:var(--red2);border:1px solid #f5c5c0;border-radius:var(--r2);margin-bottom:7px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px';
+      el3.innerHTML='<div>'
+        +'<div style="font-size:13px;font-weight:800;color:var(--text)">&#128308; '+al.titulo+'</div>'
+        +'<div style="font-size:12px;color:var(--red);margin-top:2px">'+al.msg+'</div>'
+        +'</div>'
+        +'<span style="font-size:10px;padding:2px 8px;border-radius:99px;background:var(--red);color:#fff;font-weight:800;flex-shrink:0">'+al.prazo+'</span>';
+      el3.addEventListener('click',function(){ if(al.cliId) verCliente(al.cliId); });
+      divAl.appendChild(el3);
+    });
+    if(urgentes.length>4){
+      var m2=document.createElement('div');
+      m2.style.cssText='font-size:12px;color:var(--red);text-align:center;padding:6px 0;font-weight:700;cursor:pointer';
+      m2.textContent='+ '+(urgentes.length-4)+' urgente(s) — clique em Ver todos';
+      m2.addEventListener('click',function(){ ir('alertas'); });
+      divAl.appendChild(m2);
+    }
+  }
+
+  // Últimos cadastros
   var div=document.getElementById('lista-ultimos'); if(!div) return;
-  var ult=_cls.slice(0,8);
+  var ult=_cls.slice(0,6);
   if(!ult.length){
     div.innerHTML='<div class="vazio"><div class="vazio-ic">&#128101;</div><div class="vazio-tx">Nenhum cliente ainda</div><div class="vazio-sb">Clique em Cadastro para comecar</div></div>';
     return;
@@ -2830,8 +2938,11 @@ function excluirServicoModal(){
 }
 
 // Fechar modal clicando fora
-document.getElementById('modal-editar-sv').addEventListener('click',function(e){
-  if(e.target===this) fecharModalSv();
+window.addEventListener('load',function(){
+  var msv=document.getElementById('modal-editar-sv');
+  if(msv) msv.addEventListener('click',function(e){ if(e.target===this) fecharModalSv(); });
+  var mid=document.getElementById('modal-editar-id');
+  if(mid) mid.addEventListener('click',function(e){ if(e.target===this) fecharModalId(); });
 });
 
 // =========== MODAL EDITAR ID CLIENTE ===========
@@ -2868,9 +2979,7 @@ function salvarNovoId(){
   toast('ID alterado: '+antigoId+' -> '+novoId,'ok');
 }
 
-document.getElementById('modal-editar-id').addEventListener('click',function(e){
-  if(e.target===this) fecharModalId();
-});
+// listener do modal-id movido para window.load acima
 
 // =========== OFFLINE FIRST + BACKUP ===========
 var _filaSync = [];
@@ -2991,6 +3100,7 @@ loadServicos();
 loadDocs();
 loadFila();
 atualizarStats();
+carregarAnotacao();
 setTimeout(backupDiario,3000);
 setTimeout(enviarFilaSync,2000);
 setTimeout(verificarSexta,1500);
