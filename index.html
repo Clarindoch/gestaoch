@@ -273,11 +273,15 @@ select.inp option{background:#fff}
   <div class="card">
     <div class="sec">&#128100; Identificacao Pessoal</div>
     <div class="fg c2">
-      <div class="field s2"><label>Tipo de Cliente *</label>
+      <div class="field"><label>Tipo de Cliente *</label>
         <select class="inp" id="f-tipo">
           <option value="CH">&#127970; CH - Cursos e Consultorias</option>
           <option value="CTR">&#127942; CTR - Clube de Tiro</option>
         </select></div>
+      <div class="field" id="campo-id-wrap" style="display:none">
+        <label>ID do Cliente <span style="font-weight:400;color:var(--muted)">(editavel)</span></label>
+        <input class="inp" id="f-cliente-id" placeholder="Ex: CTR-001" oninput="this.value=this.value.toUpperCase()">
+      </div>
       <div class="field s2"><label>Nome Completo *</label>
         <input class="inp" id="f-nome" placeholder="Ex: JOAO SILVA SANTOS" oninput="U(this)"></div>
       <div class="field"><label>CPF</label>
@@ -551,6 +555,28 @@ if (acao === 'CRIAR_PASTA') {
 
   var id = params.id || '';
 
+  if (acao === 'UPSERT') {
+    // Verifica se registro existe pelo ID — se sim atualiza, senão insere
+    var dadosExist = sheet.getDataRange().getValues();
+    var idCol = sheetName === 'Servicos' ? 1 : 2; // coluna do ID (0-indexed)
+    var encontrou = false;
+    for (var i = 1; i < dadosExist.length; i++) {
+      if (String(dadosExist[i][idCol]) === String(params.id)) {
+        // UPDATE
+        var linhaUp = montarLinha(params, sheetName);
+        sheet.getRange(i+1, 1, 1, linhaUp.length).setValues([linhaUp]);
+        encontrou = true;
+        break;
+      }
+    }
+    if (!encontrou) {
+      // INSERT
+      var linhaIns = montarLinha(params, sheetName);
+      sheet.appendRow(linhaIns);
+    }
+    return jsonOk({upserted: params.id, novo: !encontrou});
+  }
+
   if (acao === 'DELETE') {
     var dados = sheet.getDataRange().getValues();
     for (var i = 1; i &lt; dados.length; i++) {
@@ -574,25 +600,7 @@ if (acao === 'CRIAR_PASTA') {
   }
 
   // INSERT ou UPDATE
-  var linha;
-  if (sheetName === 'Servicos') {
-    linha = [
-      params.protocolo, params.id, params.cliId, params.cliNome, params.cliCodigo,
-      params.tipo, params.tipocliente||'', params.nomeServico, params.detalhe, params.inicio, params.prazo,
-      params.status, params.obs, params.dataProtocolo, params.ultimoVisto,
-      params.gruComunicada, params.criado, params.atualizado||''
-    ];
-  } else {
-    linha = [
-      params.seq, params.clienteId, params.id, params.nome, params.tipo,
-      params.cpf, params.rg, params.orgao, params.nascimento, params.naturalidade,
-      params.estado_civil, params.profissao, params.pai, params.mae, params.titulo,
-      params.telefone, params.email, params.endereco, params.cidade, params.cep,
-      params.prop_nome, params.prop_cpf, params.prop_rg, params.prop_orgao,
-      params.endereco2, params.cidade2, params.cep2,
-      params.gsenha, params.obs, params.criado, params.atualizado||''
-    ];
-  }
+  var linha = montarLinha(params, sheetName);
 
   if (acao === 'UPDATE') {
     var dados = sheet.getDataRange().getValues();
@@ -662,6 +670,27 @@ function gerarDoc(params) {
   }
 }
 
+function montarLinha(params, sheetName) {
+  if (sheetName === 'Servicos') {
+    return [
+      params.protocolo, params.id, params.cliId, params.cliNome, params.cliCodigo,
+      params.tipo, params.tipocliente||'', params.nomeServico, params.detalhe,
+      params.inicio, params.prazo, params.status, params.obs, params.dataProtocolo,
+      params.ultimoVisto, params.gruComunicada, params.criado, params.atualizado||''
+    ];
+  } else {
+    return [
+      params.seq, params.clienteId, params.id, params.nome, params.tipo,
+      params.cpf, params.rg, params.orgao, params.nascimento, params.naturalidade,
+      params.estado_civil, params.profissao, params.pai, params.mae, params.titulo,
+      params.telefone, params.email, params.endereco, params.cidade, params.cep,
+      params.prop_nome, params.prop_cpf, params.prop_rg, params.prop_orgao,
+      params.endereco2, params.cidade2, params.cep2,
+      params.gsenha, params.obs, params.criado, params.atualizado||''
+    ];
+  }
+}
+
 function jsonOk(obj) {
   return ContentService
     .createTextOutput(JSON.stringify({ok: true, data: obj}))
@@ -723,6 +752,18 @@ function jsonErr(msg) {
     </div>
     <div style="margin-top:10px">
       <button class="btn b-green b-sm" onclick="salvarDocs()">&#128190; Salvar IDs dos Documentos</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec">&#128295; Manutencao de Dados</div>
+    <p style="font-size:13px;color:var(--dim);margin-bottom:12px;line-height:1.6">
+      Se houver IDs duplicados ou fora de ordem, clique abaixo para corrigir automaticamente.
+    </p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn b-gold b-sm" onclick="corrigirIdsRepetidos()">&#128295; Corrigir IDs Duplicados</button>
+      <button class="btn b-blue b-sm" onclick="syncCompleto()">&#128260; Sincronizar Tudo</button>
+      <button class="btn b-green b-sm" onclick="importarDaPlanilha();toast('Importando...','warn')">&#128229; Importar da Planilha</button>
     </div>
   </div>
 
@@ -1021,6 +1062,10 @@ function limparForm(){
    'f-civil','f-prof','f-pai','f-mae','f-titulo','f-tel','f-email',
    'f-end','f-cidade','f-cep','f-pnome','f-pcpf','f-prg',   'f-end2','f-cidade2','f-cep2','f-obs'].forEach(function(id){ set(id,''); });
   set('f-tipo','CH');
+  var wrap2=document.getElementById('campo-id-wrap');
+  if(wrap2) wrap2.style.display='none';
+  var fid2=document.getElementById('f-cliente-id');
+  if(fid2) fid2.value='';
   var fsv = document.getElementById('f-sv-tipo'); if(fsv) fsv.value='';
   ['f-sv-inicio','f-sv-prazo','f-sv-obs','f-sv-transf'].forEach(function(id){ set(id,''); });
   var fw = document.getElementById('f-sv-transf-wrap'); if(fw) fw.style.display='none';
@@ -1033,13 +1078,40 @@ function cancelarEdicao(){ limparForm(); ir('lista'); }
 
 // =========== ID SEQUENCIAL POR TIPO ===========
 function proximoSeq(tipo){
+  // Pega o maior seq existente para o tipo e soma 1
   var max = 0;
   _cls.forEach(function(c){
-    if(c.tipo===tipo){ var n=parseInt(c.seq||0,10); if(n>max) max=n; }
+    if(c.tipo===tipo){
+      var n=parseInt(c.seq||0,10);
+      if(n>max) max=n;
+    }
   });
   return max+1;
 }
 function gerarClienteId(tipo,seq){ return tipo+'-'+String(seq).padStart(3,'0'); }
+
+function corrigirIdsRepetidos(){
+  // Corrige IDs duplicados — recalcula seq de todos os clientes por tipo
+  var contadores={};
+  // Ordenar por criado para manter ordem original
+  var ordenados=_cls.slice().sort(function(a,b){
+    return (a.criado||'').localeCompare(b.criado||'');
+  });
+  ordenados.forEach(function(cl){
+    var t=cl.tipo||'CH';
+    if(!contadores[t]) contadores[t]=1;
+    var idx=_cls.findIndex(function(c){return c.id===cl.id;});
+    if(idx>=0){
+      _cls[idx].seq=contadores[t];
+      _cls[idx].clienteId=gerarClienteId(t,contadores[t]);
+    }
+    contadores[t]++;
+  });
+  saveClientes();
+  renderLista();
+  renderInicio();
+  toast('IDs corrigidos e reorganizados!','ok');
+}
 
 // Protocolo por serviço: TIPO-SIGLA-NNN
 var SIGLAS = {
@@ -1126,6 +1198,11 @@ function salvar(){
 // =========== EDITAR / EXCLUIR ===========
 function editarAtual(){
   var cl = _cls.find(function(c){ return c.id===_editId; }); if(!cl) return;
+  // Mostrar campo de ID ao editar
+  var wrap=document.getElementById('campo-id-wrap');
+  var fid=document.getElementById('f-cliente-id');
+  if(wrap) wrap.style.display='block';
+  if(fid) fid.value=cl.clienteId||'';
   var m = {
     'f-nome':cl.nome,'f-cpf':cl.cpf,'f-gsenha':cl.gsenha,    'f-rg':cl.rg,'f-orgao':cl.orgao,'f-nasc':cl.nascimento,
     'f-natural':cl.naturalidade,'f-civil':cl.estado_civil,'f-prof':cl.profissao,
@@ -3486,43 +3563,177 @@ window.addEventListener('load',function(){
 function syncCompleto(){
   if(!_gasUrl){ toast('Configure a URL do GAS primeiro em Config','err'); return; }
   var btn=document.getElementById('btn-sync-top');
-  if(btn){ btn.textContent='&#8987; Sincronizando...'; btn.disabled=true; }
+  if(btn){ btn.innerHTML='&#8987; Sync...'; btn.disabled=true; }
 
   var total=_cls.length+_servs.length;
-  if(!total){ toast('Nenhum dado para sincronizar','warn'); if(btn){btn.textContent='&#128260; Sync';btn.disabled=false;} return; }
+  if(!total){
+    toast('Nenhum dado para sincronizar','warn');
+    if(btn){btn.innerHTML='&#128260; Sync';btn.disabled=false;}
+    return;
+  }
 
   toast('Sincronizando '+_cls.length+' clientes e '+_servs.length+' servicos...','warn');
   var done=0, erros=0;
 
   function fim(){
-    if(btn){ btn.textContent='&#128260; Sync'; btn.disabled=false; }
-    if(erros===0) toast('&#10003; Sincronizado! '+done+' registros','ok');
-    else toast('Concluido com '+erros+' erro(s)','warn');
+    if(btn){ btn.innerHTML='&#128260; Sync'; btn.disabled=false; }
+    if(erros===0) toast('&#10003; Sync completo! '+done+' registros','ok');
+    else toast('Sync com '+erros+' erro(s)','warn');
   }
 
-  // Sincronizar clientes
-  _cls.forEach(function(cl){
-    var p='acao=INSERT&'+Object.keys(dadosParaMaiusculo(cl)).map(function(k){
-      return encodeURIComponent(k)+'='+encodeURIComponent(dadosParaMaiusculo(cl)[k]||'');
-    }).join('&');
-    fetch(_gasUrl+'?'+p)
-      .then(function(){ done++; if(done===total) fim(); })
-      .catch(function(){ done++; erros++; if(done===total) fim(); });
-  });
+  function enviarRegistro(dados, sheet, delay){
+    setTimeout(function(){
+      var d = dadosParaMaiusculo(dados);
+      // UPSERT: tenta UPDATE primeiro, se não encontrar faz INSERT
+      var qs = 'acao=UPSERT&sheet='+(sheet||'Clientes')+'&'
+        +Object.keys(d).map(function(k){
+          return encodeURIComponent(k)+'='+encodeURIComponent(d[k]||'');
+        }).join('&');
+      fetch(_gasUrl+'?'+qs)
+        .then(function(r){ return r.json(); })
+        .then(function(res){
+          done++;
+          if(!res.ok) erros++;
+          if(done===total) fim();
+        })
+        .catch(function(){
+          done++; erros++;
+          if(done===total) fim();
+        });
+    }, delay);
+  }
 
-  // Sincronizar serviços
-  _servs.forEach(function(s){
-    var sd=dadosParaMaiusculo(s);
-    var p='acao=INSERT&sheet=Servicos&'+Object.keys(sd).map(function(k){
-      return encodeURIComponent(k)+'='+encodeURIComponent(sd[k]||'');
-    }).join('&');
-    fetch(_gasUrl+'?'+p)
-      .then(function(){ done++; if(done===total) fim(); })
-      .catch(function(){ done++; erros++; if(done===total) fim(); });
-  });
+  // Enviar com delay para não sobrecarregar o GAS (limite de 6 req/s)
+  _cls.forEach(function(cl,i){ enviarRegistro(cl,'Clientes', i*200); });
+  _servs.forEach(function(s,i){ enviarRegistro(s,'Servicos', (_cls.length+i)*200); });
 
-  // Enviar fila offline pendente
-  if(_filaSync.length) enviarFilaSync();
+  if(_filaSync.length) setTimeout(enviarFilaSync, total*200+1000);
+}
+
+
+// =========== IMPORTAR DA PLANILHA AO INICIAR ===========
+function importarDaPlanilha(){
+  if(!_gasUrl) return; // sem URL configurada, usa só local
+  var btn = document.getElementById('btn-sync-top');
+
+  // Buscar clientes
+  fetch(_gasUrl+'?acao=GET_ALL&sheet=Clientes')
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+      if(!res.ok || !res.data || !res.data.clientes) return;
+      var remotos = res.data.clientes;
+      if(!remotos.length) return;
+
+      // Mesclar: remoto prevalece sobre local se tiver ID igual
+      // Adicionar remotos que não existem no local
+      var atualizados = 0;
+      remotos.forEach(function(rem){
+        if(!rem.id && !rem.ID) return;
+        var id = rem.id || rem.ID || '';
+        var idxLocal = _cls.findIndex(function(c){ return c.id===id; });
+        // Converter chaves para minúsculo
+        var clNorm = {};
+        Object.keys(rem).forEach(function(k){ clNorm[k.toLowerCase()]=rem[k]; });
+        if(idxLocal>=0){
+          // Atualiza local com dados da planilha
+          Object.keys(clNorm).forEach(function(k){
+            if(clNorm[k]) _cls[idxLocal][k]=clNorm[k];
+          });
+        } else {
+          // Novo cliente vindo da planilha
+          _cls.push({
+            id:         clNorm.id||uid(),
+            seq:        parseInt(clNorm.seq||0,10),
+            clienteId:  clNorm.cliente_id||clNorm.clienteid||'',
+            tipo:       clNorm.tipo||'CH',
+            nome:       clNorm.nome||'',
+            cpf:        clNorm.cpf||'',
+            rg:         clNorm.rg||'',
+            orgao:      clNorm.orgao||'',
+            nascimento: clNorm.nascimento||'',
+            naturalidade:clNorm.naturalidade||'',
+            estado_civil:clNorm.estado_civil||'',
+            profissao:  clNorm.profissao||'',
+            pai:        clNorm.pai||'',
+            mae:        clNorm.mae||'',
+            titulo:     clNorm.titulo||'',
+            telefone:   clNorm.telefone||'',
+            email:      clNorm.email||'',
+            endereco:   clNorm.endereco||'',
+            cidade:     clNorm.cidade||'',
+            cep:        clNorm.cep||'',
+            prop_nome:  clNorm.prop_nome||'',
+            prop_cpf:   clNorm.prop_cpf||'',
+            prop_rg:    clNorm.prop_rg||'',
+            prop_orgao: clNorm.prop_orgao||'',
+            endereco2:  clNorm.endereco2||'',
+            cidade2:    clNorm.cidade2||'',
+            cep2:       clNorm.cep2||'',
+            gsenha:     clNorm.gsenha||clNorm.gov_senha||'',
+            obs:        clNorm.obs||'',
+            criado:     clNorm.criado||hoje(),
+            atualizado: clNorm.atualizado||hoje()
+          });
+          atualizados++;
+        }
+      });
+      if(atualizados>0){
+        saveClientes();
+        renderLista();
+        renderInicio();
+        renderAgendaHome();
+        atualizarStats();
+        toast('&#128260; '+atualizados+' cliente(s) importado(s) da planilha!','ok');
+      }
+    })
+    .catch(function(){ /* sem internet ou erro, usa local */ });
+
+  // Buscar serviços
+  fetch(_gasUrl+'?acao=GET_ALL&sheet=Servicos')
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+      if(!res.ok || !res.data || !res.data.clientes) return;
+      var remotos = res.data.clientes; // GET_ALL retorna como 'clientes'
+      if(!remotos.length) return;
+      var novos=0;
+      remotos.forEach(function(rem){
+        var norm={};
+        Object.keys(rem).forEach(function(k){ norm[k.toLowerCase()]=rem[k]; });
+        var id=norm.id||'';
+        if(!id) return;
+        var existe=_servs.some(function(s){ return s.id===id; });
+        if(!existe){
+          _servs.push({
+            id:           id,
+            protocolo:    norm.protocolo||'',
+            cliId:        norm.cli_id||norm.cliid||'',
+            cliNome:      norm.cli_nome||norm.clinome||'',
+            cliCodigo:    norm.cli_codigo||norm.clicódigo||'',
+            tipoCliente:  norm.tipo_cliente||norm.tipocliente||'',
+            tipo:         norm.tipo_servico||norm.tiposervico||norm.tipo||'',
+            nomeServico:  norm.nome_servico||norm.nomeservico||'',
+            detalhe:      norm.detalhe||'',
+            inicio:       norm.inicio||'',
+            prazo:        norm.prazo||'',
+            status:       norm.status||'aguardando_cli',
+            obs:          norm.obs||'',
+            dataProtocolo:norm.data_protocolo||norm.dataprotocolo||'',
+            ultimoVisto:  norm.ultimo_visto||norm.ultimovisto||'',
+            gruComunicada:norm.gru_comunicada||norm.grucomunicada||'',
+            criado:       norm.criado||'',
+            atualizado:   norm.atualizado||''
+          });
+          novos++;
+        }
+      });
+      if(novos>0){
+        saveServicos();
+        renderServicos();
+        renderAlertas();
+        toast('&#128193; '+novos+' servico(s) importado(s) da planilha!','ok');
+      }
+    })
+    .catch(function(){});
 }
 
 // =========== INIT ===========
@@ -3533,6 +3744,8 @@ loadFila();
 loadAgenda();
 atualizarStats();
 carregarAnotacao();
+// Importar da planilha após 2 segundos (deixa o sistema carregar primeiro)
+setTimeout(importarDaPlanilha, 2000);
 setTimeout(backupDiario,3000);
 setTimeout(enviarFilaSync,2000);
 setTimeout(verificarSexta,1500);
