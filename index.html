@@ -208,13 +208,30 @@ select.inp option{background:#fff}
     <button class="btn b-green b-sm" onclick="ir('relatorio')">Ver Relatorio</button>
   </div>
 
-  <!-- Escala do dia (Ter/Qua/Qui) -->
-  <div id="card-escala" class="card" style="display:none">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div class="sec" style="margin:0;border:0;padding:0;color:var(--blue)">&#128197; <span id="escala-titulo">Clientes do Dia</span></div>
-      <button class="btn b-out b-xs" onclick="ir('alertas')">Ver todos</button>
+  <!-- Agenda Ter/Qua/Qui -->
+  <div class="card" id="card-agenda">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="sec" style="margin:0;border:0;padding:0;color:var(--blue)">&#128197; Agenda Semanal</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn b-out b-xs" onclick="reorganizarAgenda()" title="Redistribuir clientes">&#8635;</button>
+        <button class="btn b-blue b-xs" onclick="ir('alertas')">&#9888; Alertas</button>
+      </div>
     </div>
-    <div id="lista-escala"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px" id="agenda-grid">
+      <div>
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;text-align:center;padding:6px;border-radius:var(--r2);margin-bottom:8px" id="ag-hdr-ter"
+          style="background:var(--blue2);color:var(--blue)">&#128197; Terca</div>
+        <div id="ag-ter" style="min-height:60px"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;text-align:center;padding:6px;border-radius:var(--r2);margin-bottom:8px" id="ag-hdr-qua">&#128197; Quarta</div>
+        <div id="ag-qua" style="min-height:60px"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;text-align:center;padding:6px;border-radius:var(--r2);margin-bottom:8px" id="ag-hdr-qui">&#128197; Quinta</div>
+        <div id="ag-qui" style="min-height:60px"></div>
+      </div>
+    </div>
   </div>
 
   <!-- Alertas urgentes na home -->
@@ -1150,7 +1167,7 @@ function ir(pg){
   var el=document.getElementById('pg-'+pg); if(el) el.classList.add('on');
   document.querySelectorAll('.nb').forEach(function(b){ b.classList.remove('on'); });
   var nb=document.getElementById('nb-'+pg); if(nb) nb.classList.add('on');
-  if(pg==='inicio')  renderInicio();
+  if(pg==='inicio'){  renderInicio(); renderAgendaHome(); }
   if(pg==='lista')   renderLista();
   if(pg==='config'){  renderConfig(); renderConfigDocs(); }
   if(pg==='docs'){ renderDocsGerados(); }
@@ -1201,6 +1218,7 @@ function calcularEscala(){
 
 function renderInicio(){
   carregarAnotacao();
+  renderAgendaHome();
 
   // Aviso sexta
   var dh = new Date().getDay();
@@ -3215,11 +3233,168 @@ function finalizarServicoDet(svId, cliId){
   verCliente(cliId||s.cliId);
   toast((escolha?'&#10003; Deferido':'&#10007; Indeferido')+': '+s.protocolo,'ok');
 }
+
+// =========== AGENDA TER/QUA/QUI ===========
+var KAG = 'gch_agenda_ordem'; // guarda ordem dos clientes por dia
+var _agOrdem = {ter:[], qua:[], qui:[]}; // IDs em ordem para cada dia
+
+function loadAgenda(){
+  try{ _agOrdem = JSON.parse(localStorage.getItem(KAG)||'{}');
+    if(!_agOrdem.ter) _agOrdem.ter=[];
+    if(!_agOrdem.qua) _agOrdem.qua=[];
+    if(!_agOrdem.qui) _agOrdem.qui=[];
+  }catch(e){ _agOrdem={ter:[],qua:[],qui:[]}; }
+}
+
+function saveAgenda(){ localStorage.setItem(KAG, JSON.stringify(_agOrdem)); }
+
+function reorganizarAgenda(){
+  // Distribui clientes ativos igualmente nos 3 dias
+  var ativos = _cls.filter(function(cl){ return clienteAtivo(cl.id); });
+  _agOrdem = {ter:[], qua:[], qui:[]};
+  var dias = ['ter','qua','qui'];
+  ativos.forEach(function(cl,i){ _agOrdem[dias[i%3]].push(cl.id); });
+  saveAgenda();
+  renderAgendaHome();
+  toast('Agenda reorganizada!','ok');
+}
+
+function garantirAgenda(){
+  // Garantir que todos os clientes ativos estejam na agenda
+  // e remover inativos
+  var ativos = _cls.filter(function(cl){ return clienteAtivo(cl.id); });
+  var dias = ['ter','qua','qui'];
+  var todos = _agOrdem.ter.concat(_agOrdem.qua).concat(_agOrdem.qui);
+  
+  // Remover inativos
+  dias.forEach(function(d){
+    _agOrdem[d] = _agOrdem[d].filter(function(id){
+      return ativos.some(function(cl){ return cl.id===id; });
+    });
+  });
+
+  // Adicionar novos clientes não presentes
+  ativos.forEach(function(cl,i){
+    if(todos.indexOf(cl.id)<0){
+      _agOrdem[dias[i%3]].push(cl.id);
+    }
+  });
+  saveAgenda();
+}
+
+function moverParaFinal(cliId){
+  // Quando cliente tem visto marcado, vai pro final do dia dele
+  var dias=['ter','qua','qui'];
+  for(var d=0;d<dias.length;d++){
+    var idx=_agOrdem[dias[d]].indexOf(cliId);
+    if(idx>=0){
+      _agOrdem[dias[d]].splice(idx,1);
+      _agOrdem[dias[d]].push(cliId);
+      saveAgenda();
+      renderAgendaHome();
+      return;
+    }
+  }
+}
+
+function renderAgendaHome(){
+  garantirAgenda();
+  var hoje = new Date().getDay(); // 0=dom,2=ter,3=qua,4=qui
+  var dias = [
+    {key:'ter', dia:2, label:'Terca-feira', id:'ag-ter', hdr:'ag-hdr-ter'},
+    {key:'qua', dia:3, label:'Quarta-feira', id:'ag-qua', hdr:'ag-hdr-qua'},
+    {key:'qui', dia:4, label:'Quinta-feira', id:'ag-qui', hdr:'ag-hdr-qui'}
+  ];
+
+  dias.forEach(function(info){
+    var hdrEl = document.getElementById(info.hdr);
+    var listEl= document.getElementById(info.id);
+    if(!hdrEl||!listEl) return;
+
+    var isHoje = hoje===info.dia;
+    var cor    = isHoje ? 'var(--blue)' : 'var(--muted)';
+    var bg     = isHoje ? 'var(--blue2)' : '#f1f3f5';
+    var bordaHdr = isHoje ? 'border:2px solid var(--blue)' : 'border:1px solid var(--border)';
+
+    hdrEl.style.cssText = 'font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;text-align:center;padding:7px;border-radius:var(--r2);margin-bottom:8px;background:'+bg+';color:'+cor+';'+bordaHdr;
+    hdrEl.textContent = (isHoje?'★ ':'')+info.label+' ('+_agOrdem[info.key].length+')';
+
+    listEl.innerHTML='';
+    var ids = _agOrdem[info.key];
+    if(!ids.length){
+      listEl.innerHTML='<div style="font-size:11px;color:var(--muted);text-align:center;padding:12px 0">Nenhum cliente</div>';
+      return;
+    }
+
+    ids.forEach(function(cliId, pos){
+      var cl = _cls.find(function(c){ return c.id===cliId; });
+      if(!cl) return;
+
+      var servAbertos = _servs.filter(function(s){
+        return s.cliId===cliId && s.status!=='deferido' && s.status!=='indeferido';
+      });
+
+      // Calcular maior alerta do cliente
+      var maxDias = 0;
+      servAbertos.forEach(function(s){
+        var d=diasDesde(s.ultimoVisto||s.inicio);
+        if(d>maxDias) maxDias=d;
+      });
+
+      var alertaCor = maxDias>=14 ? 'var(--red)' :
+                      maxDias>=12 ? '#b45309'     :
+                      maxDias>=7  ? '#0369a1'     : 'var(--green)';
+      var alertaBg  = maxDias>=14 ? 'var(--red2)' :
+                      maxDias>=12 ? '#fef3c7'     :
+                      maxDias>=7  ? '#e0f2fe'     : 'var(--green2)';
+      var alertaTxt = maxDias>=14 ? maxDias+'d !' :
+                      maxDias>=12 ? maxDias+'d'   :
+                      maxDias>=7  ? maxDias+'d'   : 'OK';
+
+      // É o último da lista? (já visto)
+      var isUltimo = pos === ids.length-1 && ids.length>1;
+      var opacidade = isUltimo ? '0.55' : '1';
+
+      var item = document.createElement('div');
+      item.style.cssText = 'background:#fff;border:1px solid var(--border);border-radius:var(--r2);padding:7px 9px;margin-bottom:5px;cursor:pointer;transition:.15s;opacity:'+opacidade+';'+(isHoje?'border-left:3px solid '+alertaCor+';':'');
+      item.onmouseover = function(){ this.style.borderColor='var(--blue)'; this.style.opacity='1'; };
+      item.onmouseout  = function(){ this.style.borderColor=isHoje?alertaCor:'var(--border)'; this.style.opacity=opacidade; };
+      item.innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:4px">'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)">'
+        +(isHoje?'':'<span style="color:var(--muted)">'+info.label.slice(0,3)+'</span> ')
+        +cl.nome.split(' ')[0]+'</div>'
+        +'<div style="font-size:10px;color:var(--dim);margin-top:1px">'+(cl.clienteId||cl.tipo)+' &middot; '+servAbertos.length+'serv</div>'
+        +'</div>'
+        +(maxDias>0?'<span style="font-size:10px;padding:1px 6px;border-radius:99px;background:'+alertaBg+';color:'+alertaCor+';font-weight:800;flex-shrink:0">'+alertaTxt+'</span>':'')
+        +'</div>';
+
+      item.addEventListener('click', function(){
+        _agCliAtual = cliId;
+        verCliente(cliId);
+      });
+      listEl.appendChild(item);
+    });
+  });
+}
+
+var _agCliAtual = null;
+
+// Interceptar marcarVisto para mover cliente pro final
+var _marcarVistoOrig = marcarVisto;
+function marcarVisto(svId){
+  var s=_servs.find(function(x){ return x.id===svId; });
+  _marcarVistoOrig(svId);
+  if(s) setTimeout(function(){ moverParaFinal(s.cliId); renderAgendaHome(); },200);
+}
+
 // =========== INIT ===========
 loadAll();
 loadServicos();
 loadDocs();
 loadFila();
+loadAgenda();
 atualizarStats();
 carregarAnotacao();
 setTimeout(backupDiario,3000);
