@@ -1460,20 +1460,28 @@ function verCliente(id){
 
   servsAtivos.forEach(function(s){
     var st = getStatus(s.status);
-    h += '<div style="padding:10px 0;border-bottom:1px solid var(--border)">'
+      var diasV=diasDesde(s.ultimoVisto||s.inicio);
+  var bCor=diasV>=14?'border-left:4px solid var(--red)':diasV>=12?'border-left:4px solid #f59e0b':'border-left:4px solid transparent';
+  h += '<div style="padding:10px 0 10px 10px;border-bottom:1px solid var(--border);'+bCor+'">';
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
       +'<div style="flex:1">'
       +'<div style="font-size:11px;color:var(--blue);font-weight:800">'+(s.protocolo||'')+'</div>'
       +'<div style="font-size:13px;font-weight:700;margin-top:1px">'+s.nomeServico+'</div>'
-      +'<div style="font-size:11px;color:var(--dim);margin-top:2px">Inicio: '+fmtData(s.inicio)+(s.prazo?' &middot; Prazo: '+fmtData(s.prazo):'')+(s.ultimoVisto?' &middot; Visto: '+fmtData(s.ultimoVisto):'')+'</div>'
+      +'<div style="font-size:11px;color:var(--dim);margin-top:2px">Inicio: '+fmtData(s.inicio)+(s.prazo?' &middot; Prazo: '+fmtData(s.prazo):'')+(function(){
+        var dias=diasDesde(s.ultimoVisto||s.inicio);
+        var cor=dias>=14?'color:var(--red);font-weight:700':dias>=12?'color:#b45309;font-weight:700':'color:var(--dim)';
+        var txt=s.ultimoVisto?fmtData(s.ultimoVisto)+' ('+dias+'d)':'nunca';
+        return ' <span style="'+cor+'">&#128065; '+txt+'</span>';
+      }())+'</div>'
       +(s.obs?'<div style="font-size:11px;color:var(--dim);font-style:italic;margin-top:1px">'+s.obs+'</div>':'')
       +'</div>'
       +'<span style="padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;background:'+st.bg+';color:'+st.cor+';border:1px solid '+st.cor+'33;flex-shrink:0;white-space:nowrap">'+st.l+'</span>'
       +'</div>'
       +'<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'
+      +'<button class="btn b-out b-xs" data-visto-sv="'+s.id+'">&#128065; Visto</button>'
       +'<button class="btn b-gold b-xs" data-edit-sv="'+s.id+'">&#9998; Editar</button>'
       +'<button class="btn b-blue b-xs" data-alt-sv="'+s.id+'">&#8635; Status</button>'
-      +(s.status==='protocolado'?'<button class="btn b-out b-xs" data-visto-sv="'+s.id+'">&#128065; Visto</button>':'')
+      +'<button class="btn b-green b-xs" data-fin-sv="'+s.id+'">&#10003; Finalizar</button>'
       +'</div>'
       +'</div>';
   });
@@ -1566,6 +1574,11 @@ function verCliente(id){
       b.addEventListener('click',function(){
         alterarStatus(b.getAttribute('data-alt-sv'));
         setTimeout(function(){ verCliente(id); },300);
+      });
+    });
+    det.querySelectorAll('[data-fin-sv]').forEach(function(b){
+      b.addEventListener('click',function(){
+        finalizarServicoDet(b.getAttribute('data-fin-sv'), id);
       });
     });
     det.querySelectorAll('[data-visto-sv]').forEach(function(b){
@@ -2084,13 +2097,14 @@ function renderAlertas(){
 // Marcar visualização de serviço protocolado
 function marcarVisto(svId){
   var s=_servs.find(function(x){ return x.id===svId; }); if(!s) return;
+  var cl=_cls.find(function(c){ return c.id===s.cliId; });
   s.ultimoVisto = isoHoje();
   s.atualizado  = isoHoje();
   saveServicos();
   renderAlertas();
   renderServicos();
   enviarGAS(dadosParaMaiusculo(s),'UPDATE','Servicos');
-  toast('Visto registrado! Prazo reiniciado.','ok');
+  toast('&#128065; Visto: '+(s.protocolo||s.nomeServico)+' — '+(cl?cl.nome.split(' ')[0]:''),'ok');
 }
 
 // Marcar GRU comunicada
@@ -2406,7 +2420,7 @@ function buscarCliente(ctx){
 
 // Fechar autocomplete ao clicar fora
 document.addEventListener('click', function(e){
-  ['sv-cli-resultados','doc-cli-resultados'].forEach(function(id){
+  ['sv-cli-resultados','doc-cli-resultados','rel-cli-resultados'].forEach(function(id){
     var el=document.getElementById(id);
     if(el && !el.contains(e.target)){
       var inputEl=document.getElementById(id.replace('-resultados','-busca'));
@@ -2439,56 +2453,179 @@ function verificarLimiteDoc(cliId, tipo){
 }
 
 // =========== RELATÓRIO ===========
-function gerarRelatorio(modo){
-  var hoje2   = new Date(); hoje2.setHours(0,0,0,0);
-  var inicioSemana = new Date(hoje2);
-  inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
 
-  var servsFiltrados = modo==='semanal'
-    ? _servs.filter(function(s){
-        var d=new Date(s.criado||''); d.setHours(0,0,0,0);
-        return d >= inicioSemana;
-      })
-    : _servs.slice();
+// =========== RELATÓRIO NOVO ===========
+var _relClisSel = []; // IDs dos clientes selecionados
 
-  // Sexta-feira aviso
-  var aviso=document.getElementById('rel-aviso-sexta');
-  if(aviso) aviso.style.display=(hoje2.getDay()===5)?'block':'none';
+function buscarCliRel(){
+  var q=(document.getElementById('rel-cli-busca')||{value:''}).value.toLowerCase().trim();
+  var res=document.getElementById('rel-cli-resultados');
+  if(!res) return;
+  if(q.length<2){ res.style.display='none'; return; }
+  var lista=_cls.filter(function(cl){
+    return (cl.nome+cl.cpf+(cl.clienteId||'')).toLowerCase().indexOf(q)>=0
+      && _relClisSel.indexOf(cl.id)<0;
+  }).slice(0,8);
+  if(!lista.length){ res.style.display='none'; return; }
+  res.style.display='block'; res.innerHTML='';
+  lista.forEach(function(cl){
+    var item=document.createElement('div');
+    item.style.cssText='padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border)';
+    item.onmouseover=function(){this.style.background='var(--blue2)'};
+    item.onmouseout=function(){this.style.background=''};
+    item.innerHTML='<div style="font-size:13px;font-weight:700">'+cl.nome+'</div>'
+      +'<div style="font-size:11px;color:var(--dim)">'+(cl.clienteId||cl.tipo)+(cl.cpf?' &middot; '+cl.cpf:'')+'</div>';
+    item.addEventListener('click',function(){
+      _relClisSel.push(cl.id);
+      renderTagsSel();
+      res.style.display='none';
+      var inp=document.getElementById('rel-cli-busca'); if(inp) inp.value='';
+      renderRelatorio();
+    });
+    res.appendChild(item);
+  });
+}
+
+function renderTagsSel(){
+  var div=document.getElementById('rel-cli-selecionados'); if(!div) return;
+  div.innerHTML='';
+  _relClisSel.forEach(function(id){
+    var cl=_cls.find(function(c){return c.id===id;});
+    if(!cl) return;
+    var tag=document.createElement('span');
+    tag.style.cssText='display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:var(--blue2);color:var(--blue);border-radius:99px;font-size:12px;font-weight:700;border:1px solid #c5d8f5';
+    tag.innerHTML=cl.nome.split(' ')[0]+' <span style="cursor:pointer;font-weight:900" data-rm="'+id+'">&times;</span>';
+    tag.querySelector('[data-rm]').addEventListener('click',function(){
+      _relClisSel=_relClisSel.filter(function(x){return x!==id;});
+      renderTagsSel(); renderRelatorio();
+    });
+    div.appendChild(tag);
+  });
+}
+
+function limparSelCliRel(){
+  _relClisSel=[];
+  renderTagsSel();
+  var inp=document.getElementById('rel-cli-busca'); if(inp) inp.value='';
+  renderRelatorio();
+}
+
+function selecionarTodosRel(){
+  _relClisSel=_cls.map(function(c){return c.id;});
+  renderTagsSel(); renderRelatorio();
+}
+
+function gerarRelatorio(){
+  var periodo=(document.getElementById('rel-periodo')||{value:'geral'}).value;
+  var tipoFilt=(document.getElementById('rel-tipo')||{value:''}).value;
+  var dh=new Date(); dh.setHours(0,0,0,0);
+  var inicioSemana=new Date(dh); inicioSemana.setDate(dh.getDate()-dh.getDay());
+  var inicioMes=new Date(dh.getFullYear(),dh.getMonth(),1);
+  var inicioSemPassada=new Date(inicioSemana); inicioSemPassada.setDate(inicioSemPassada.getDate()-7);
+  var fimSemPassada=new Date(inicioSemana); fimSemPassada.setDate(fimSemPassada.getDate()-1);
+
+  // Aviso sexta
+  var av=document.getElementById('rel-aviso-sexta');
+  if(av) av.style.display=dh.getDay()===5?'block':'none';
+
+  // Filtrar clientes
+  var clsFilt=_cls.filter(function(cl){
+    if(tipoFilt && cl.tipo!==tipoFilt) return false;
+    if(_relClisSel.length && _relClisSel.indexOf(cl.id)<0) return false;
+    return true;
+  });
+
+  // Filtrar serviços
+  var servsFilt=_servs.filter(function(s){
+    var cl=clsFilt.find(function(c){return c.id===s.cliId;});
+    if(!cl) return false;
+    if(periodo==='semana'){
+      var d=new Date(s.criado||''); d.setHours(0,0,0,0);
+      return d>=inicioSemana;
+    }
+    if(periodo==='semana_passada'){
+      var d2=new Date(s.criado||''); d2.setHours(0,0,0,0);
+      return d2>=inicioSemPassada && d2<=fimSemPassada;
+    }
+    if(periodo==='mes'){
+      var d3=new Date(s.criado||''); d3.setHours(0,0,0,0);
+      return d3>=inicioMes;
+    }
+    return true;
+  });
 
   var div=document.getElementById('rel-conteudo'); if(!div) return;
-
-  var titulo=modo==='semanal'?'Semana de '+inicioSemana.toLocaleDateString('pt-BR')+' a '+hoje2.toLocaleDateString('pt-BR'):'Relatorio Geral — Todos os Servicos';
-
-  // Agrupar por status
-  var porStatus={};
-  STATUS_SERV.forEach(function(st){ porStatus[st.v]=[]; });
-  servsFiltrados.forEach(function(s){
-    if(porStatus[s.status]) porStatus[s.status].push(s);
-    else porStatus[s.status]=[s];
-  });
+  var periodoTxt={semana:'Esta Semana',semana_passada:'Semana Passada',mes:'Este Mes',geral:'Geral'};
+  var hoje2=new Date().toLocaleDateString('pt-BR');
 
   var h='<div id="rel-imprimivel">';
   h+='<div style="text-align:center;padding:16px 0;border-bottom:2px solid var(--border);margin-bottom:20px">'
     +'<div style="font-size:20px;font-weight:900">CH Cursos e Consultorias</div>'
-    +'<div style="font-size:14px;color:var(--dim);margin-top:4px">'+titulo+'</div>'
-    +'<div style="font-size:12px;color:var(--muted);margin-top:2px">Gerado em '+new Date().toLocaleString('pt-BR')+'</div>'
+    +'<div style="font-size:14px;color:var(--dim);margin-top:4px">Relatorio '+periodoTxt[periodo]+(tipoFilt?' — '+tipoFilt:'')+'</div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-top:2px">Gerado em '+hoje2+' &middot; '+(clsFilt.length)+' cliente(s) &middot; '+(servsFilt.length)+' servico(s)</div>'
     +'</div>';
 
   // Cards resumo
+  var total=servsFilt.length;
+  var deferidos=servsFilt.filter(function(s){return s.status==='deferido';}).length;
+  var andamento=servsFilt.filter(function(s){return s.status!=='deferido'&&s.status!=='indeferido';}).length;
+  var indeferidos=servsFilt.filter(function(s){return s.status==='indeferido';}).length;
   h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">';
-  var total=servsFiltrados.length;
-  var deferidos=servsFiltrados.filter(function(s){return s.status==='deferido';}).length;
-  var andamento=servsFiltrados.filter(function(s){return s.status!=='deferido'&&s.status!=='indeferido';}).length;
-  var indeferidos=servsFiltrados.filter(function(s){return s.status==='indeferido';}).length;
   h+=statBoxRel(total,'Total','var(--blue)');
   h+=statBoxRel(andamento,'Em Andamento','#b45309');
   h+=statBoxRel(deferidos,'Deferidos','var(--green)');
   h+=statBoxRel(indeferidos,'Indeferidos','var(--red)');
   h+='</div>';
 
+  // TABELA POR CLIENTE
+  h+='<div style="margin-bottom:24px">';
+  h+='<div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--blue2)">Detalhamento por Cliente</div>';
+
+  clsFilt.forEach(function(cl){
+    var servsCli=servsFilt.filter(function(s){return s.cliId===cl.id;});
+    if(!servsCli.length) return;
+    var ativo=clienteAtivo(cl.id);
+    var corTipo=cl.tipo==='CTR'?'var(--green)':'var(--blue)';
+
+    h+='<div style="margin-bottom:18px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden">';
+    // Header do cliente
+    h+='<div style="background:'+corTipo+';color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">'
+      +'<div>'
+      +'<div style="font-size:14px;font-weight:800">'+cl.nome+'</div>'
+      +'<div style="font-size:11px;opacity:.85;margin-top:2px">'+(cl.clienteId||cl.tipo)+(cl.cpf?' &middot; '+cl.cpf:'')+(cl.telefone?' &middot; '+cl.telefone:'')+'</div>'
+      +'</div>'
+      +'<span style="font-size:11px;padding:2px 9px;border-radius:99px;background:rgba(255,255,255,.2);font-weight:700">'+(ativo?'Ativo':'Inativo')+'</span>'
+      +'</div>';
+
+    // Serviços do cliente
+    servsCli.forEach(function(s,idx){
+      var st=getStatus(s.status);
+      var diasV=diasDesde(s.ultimoVisto||s.inicio);
+      var bgRow=idx%2===0?'#fff':'#f9f9fb';
+      h+='<div style="padding:10px 14px;background:'+bgRow+';border-top:1px solid var(--border)">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+        +'<div style="flex:1">'
+        +(s.protocolo?'<div style="font-size:11px;color:var(--blue);font-weight:800;margin-bottom:3px">'+s.protocolo+'</div>':'')
+        +'<div style="font-size:14px;font-weight:700">'+s.nomeServico+'</div>'
+        +'<div style="font-size:12px;color:var(--dim);margin-top:4px;display:flex;flex-wrap:wrap;gap:12px">'
+        +'<span>&#128197; Inicio: '+fmtData(s.inicio)+'</span>'
+        +(s.prazo?'<span>&#9201; Prazo: '+fmtData(s.prazo)+'</span>':'')
+        +(s.ultimoVisto?'<span style="'+(diasV>=14?'color:var(--red);font-weight:700':diasV>=12?'color:#b45309;font-weight:700':'')+'">&#128065; Visto: '+fmtData(s.ultimoVisto)+' ('+diasV+'d)</span>':'')
+        +(s.dataProtocolo?'<span>Protocolado: '+fmtData(s.dataProtocolo)+'</span>':'')
+        +'</div>'
+        +(s.obs?'<div style="font-size:12px;color:var(--dim);font-style:italic;margin-top:5px;padding:5px 8px;background:#f5f5f5;border-radius:4px">Obs: '+s.obs+'</div>':'')
+        +'</div>'
+        +'<span style="padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;background:'+st.bg+';color:'+st.cor+';border:1px solid '+st.cor+'33;flex-shrink:0">'+st.l+'</span>'
+        +'</div>'
+        +'</div>';
+    });
+    h+='</div>';
+  });
+  h+='</div>';
+
   // Tabela por status
   STATUS_SERV.forEach(function(st){
-    var lista=porStatus[st.v]||[];
+    var lista=servsFilt.filter(function(s){return s.status===st.v;});
     if(!lista.length) return;
     h+='<div style="margin-bottom:20px">';
     h+='<div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:'+st.cor+';margin-bottom:8px;padding:6px 10px;background:'+st.bg+';border-radius:var(--r2);border-left:4px solid '+st.cor+'">'+st.l+' ('+lista.length+')</div>';
@@ -2499,66 +2636,32 @@ function gerarRelatorio(modo){
       +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Servico</th>'
       +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Inicio</th>'
       +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Prazo</th>'
-      +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Ultimo Visto / GRU</th>'
-      +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Obs</th>'
+      +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Ult. Visto</th>'
+      +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Observacao</th>'
       +'</tr></thead><tbody>';
     lista.forEach(function(s){
-      var diasUlt = diasDesde(s.ultimoVisto||s.inicio);
-      var alertaCor = diasUlt>=14?'color:var(--red);font-weight:700':diasUlt>=12?'color:#b45309;font-weight:700':'';
-      var diasGRU   = s.dataProtocolo ? diasDesde(s.dataProtocolo) : null;
-      var gruAlerta = diasGRU!==null && diasGRU>=20 ? (diasGRU>=30?'<span style="color:var(--red);font-weight:700">GRU VENCIDA</span>':'<span style="color:#b45309;font-weight:700">GRU: '+(30-diasGRU)+' dias</span>') : '';
+      var cl=clsFilt.find(function(c){return c.id===s.cliId;})||{nome:'?'};
+      var dias=diasDesde(s.ultimoVisto||s.inicio);
+      var corD=dias>=14?'color:var(--red);font-weight:700':dias>=12?'color:#b45309;font-weight:700':'';
       h+='<tr>'
         +'<td style="padding:7px 10px;border:1px solid var(--border);font-weight:700;color:var(--blue)">'+(s.protocolo||'—')+'</td>'
-        +'<td style="padding:7px 10px;border:1px solid var(--border)">'
-          +'<div style="font-weight:700">'+s.cliNome+'</div>'
-          +'<div style="font-size:11px;color:var(--dim)">'+(s.cliCodigo||s.tipoCliente||'')+'</div>'
-        +'</td>'
+        +'<td style="padding:7px 10px;border:1px solid var(--border);font-weight:600">'+cl.nome+'</td>'
         +'<td style="padding:7px 10px;border:1px solid var(--border)">'+s.nomeServico+'</td>'
         +'<td style="padding:7px 10px;border:1px solid var(--border)">'+fmtData(s.inicio)+'</td>'
         +'<td style="padding:7px 10px;border:1px solid var(--border)">'+(s.prazo?fmtData(s.prazo):'—')+'</td>'
-        +'<td style="padding:7px 10px;border:1px solid var(--border);'+alertaCor+'">'
-          +(s.ultimoVisto?fmtData(s.ultimoVisto)+' ('+diasUlt+' dias)':'—')
-          +(gruAlerta?'<br>'+gruAlerta:'')
-        +'</td>'
+        +'<td style="padding:7px 10px;border:1px solid var(--border);'+corD+'">'+(s.ultimoVisto?fmtData(s.ultimoVisto)+' ('+dias+'d)':'—')+'</td>'
         +'<td style="padding:7px 10px;border:1px solid var(--border);font-style:italic;color:var(--dim)">'+(s.obs||'—')+'</td>'
         +'</tr>';
     });
     h+='</tbody></table></div>';
   });
 
-  // Resumo por cliente
-  h+='<div style="margin-top:24px"><div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--blue2)">Resumo por Cliente</div>';
-  var porCli={};
-  servsFiltrados.forEach(function(s){
-    if(!porCli[s.cliNome]) porCli[s.cliNome]={nome:s.cliNome,codigo:s.cliCodigo||'',servicos:[]};
-    porCli[s.cliNome].servicos.push(s);
-  });
-  Object.keys(porCli).sort().forEach(function(nome){
-    var c=porCli[nome];
-    h+='<div style="margin-bottom:12px;padding:12px 14px;background:var(--bg);border-radius:var(--r2);border:1px solid var(--border)">'
-      +'<div style="font-size:13px;font-weight:800;color:var(--text)">'+nome+'<span style="font-size:11px;color:var(--dim);margin-left:8px">'+c.codigo+'</span></div>'
-      +'<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">';
-    c.servicos.forEach(function(s){
-      var st=getStatus(s.status);
-      h+='<span style="padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;background:'+st.bg+';color:'+st.cor+';border:1px solid '+st.cor+'33">'
-        +(s.protocolo?s.protocolo+': ':'')
-        +st.l+'</span>';
-    });
-    h+='</div></div>';
-  });
-  h+='</div>';
-
+  // Rodapé
   h+='<div style="text-align:center;font-size:11px;color:var(--muted);padding:14px 0;border-top:1px solid var(--border);margin-top:8px">CH Cursos e Consultorias &mdash; Cruz das Almas/BA</div>';
   h+='</div>';
   div.innerHTML=h;
 }
 
-function statBoxRel(n,l,cor){
-  return '<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px;text-align:center">'
-    +'<div style="font-size:24px;font-weight:900;color:'+cor+'">'+n+'</div>'
-    +'<div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">'+l+'</div>'
-    +'</div>';
-}
 
 function imprimirRelatorio(){
   window.print();
@@ -3093,6 +3196,24 @@ function toggleFinalizados(btn){
   var vis = div.style.display !== 'none';
   div.style.display = vis ? 'none' : 'block';
   btn.textContent = (vis ? '▶' : '▼') + btn.textContent.slice(1);
+}
+
+function finalizarServicoDet(svId, cliId){
+  var s=_servs.find(function(x){return x.id===svId;}); if(!s) return;
+  // Modal de escolha: Deferido ou Indeferido
+  var escolha = confirm(
+    'Finalizar servico:\n'+s.nomeServico+(s.protocolo?' ('+s.protocolo+')':'')+'\n\n'
+    +'OK = Deferido (aprovado)\nCancelar = Indeferido (negado)\n\n'
+    +'Clique OK para Deferido ou Cancelar para Indeferido.'
+  );
+  s.status = escolha ? 'deferido' : 'indeferido';
+  s.atualizado = isoHoje();
+  s.finalizado = isoHoje();
+  saveServicos();
+  enviarGAS(dadosParaMaiusculo(s),'UPDATE','Servicos');
+  renderAlertas();
+  verCliente(cliId||s.cliId);
+  toast((escolha?'&#10003; Deferido':'&#10007; Indeferido')+': '+s.protocolo,'ok');
 }
 // =========== INIT ===========
 loadAll();
