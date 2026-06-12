@@ -1440,7 +1440,7 @@ function verCliente(id){
         var bv=document.createElement('button');
         bv.className='btn b-out b-xs';
         bv.innerHTML='&#128065; Visto: '+s.protocolo;
-        bv.onclick=function(){ marcarVisto(s.id); verCliente(id); };
+        bv.onclick=(function(sid){ return function(){ abrirModalVisto(sid); }; })(s.id);
         btnsDiv.appendChild(bv);
         if(s.status!=='protocolado'&&s.status!=='deferido'){
           var bp=document.createElement('button');
@@ -1496,7 +1496,7 @@ function verCliente(id){
       +'<span style="padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;background:'+st.bg+';color:'+st.cor+';border:1px solid '+st.cor+'33;flex-shrink:0;white-space:nowrap">'+st.l+'</span>'
       +'</div>'
       +'<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'
-      +'<button class="btn b-out b-xs" data-visto-sv="'+s.id+'">&#128065; Visto</button>'
+      +'<button class="btn b-blue b-xs" data-visto-sv="'+s.id+'">&#128065; Visto</button>'
       +'<button class="btn b-gold b-xs" data-edit-sv="'+s.id+'">&#9998; Editar</button>'
       +'<button class="btn b-blue b-xs" data-alt-sv="'+s.id+'">&#8635; Status</button>'
       +'<button class="btn b-green b-xs" data-fin-sv="'+s.id+'">&#10003; Finalizar</button>'
@@ -1601,8 +1601,7 @@ function verCliente(id){
     });
     det.querySelectorAll('[data-visto-sv]').forEach(function(b){
       b.addEventListener('click',function(){
-        marcarVisto(b.getAttribute('data-visto-sv'));
-        verCliente(id);
+        abrirModalVisto(b.getAttribute('data-visto-sv'));
       });
     });
   }
@@ -1927,7 +1926,7 @@ function renderServicos(){
       var bd=e.target.closest('[data-del-sv]');
       if(bd){ excluirServico(bd.getAttribute('data-del-sv')); return; }
       var bv=e.target.closest('[data-visto]');
-      if(bv){ marcarVisto(bv.getAttribute('data-visto')); return; }
+      if(bv){ abrirModalVisto(bv.getAttribute('data-visto')); return; }
       var bg2=e.target.closest('[data-gru]');
       if(bg2){ marcarGRU(bg2.getAttribute('data-gru')); }
     });
@@ -2996,6 +2995,20 @@ function abrirEditarSv(svId){
   var gr=document.getElementById('esv-gru'); if(gr) gr.value=s.gruComunicada||'';
   var ob=document.getElementById('esv-obs'); if(ob) ob.value=s.obs||'';
 
+  // Histórico de vistos
+  var hw=document.getElementById('esv-historico-wrap');
+  var hd=document.getElementById('esv-historico');
+  if(s.historico && s.historico.length && hw && hd){
+    hw.style.display='block';
+    hd.innerHTML=s.historico.slice().reverse().map(function(h){
+      return '<div style="padding:5px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:8px">'
+        +'<div><span style="font-weight:700;color:var(--blue)">'+fmtData(h.data)+'</span>'
+        +(h.tipo?' &middot; <span style="color:var(--dim)">'+h.tipo+'</span>':'')
+        +(h.obs?'<div style="color:var(--text);margin-top:2px">'+h.obs+'</div>':'')
+        +'</div></div>';
+    }).join('');
+  } else if(hw){ hw.style.display='none'; }
+
   m.style.display='flex';
 }
 
@@ -3389,6 +3402,87 @@ function marcarVisto(svId){
   if(s) setTimeout(function(){ moverParaFinal(s.cliId); renderAgendaHome(); },200);
 }
 
+
+// =========== MODAL VISTO ===========
+var _mvSvId = null;
+var _mvTipoSel = '';
+
+function abrirModalVisto(svId){
+  var s=_servs.find(function(x){ return x.id===svId; }); if(!s) return;
+  var cl=_cls.find(function(c){ return c.id===s.cliId; });
+  _mvSvId = svId;
+  _mvTipoSel = 'Verificado no sistema';
+
+  var info=document.getElementById('mv-info');
+  if(info) info.innerHTML='<b>'+(s.protocolo||s.nomeServico)+'</b>'
+    +(cl?' &middot; '+cl.nome:'')
+    +'<br><span style="font-weight:400;font-size:12px">Ultimo visto: '
+    +(s.ultimoVisto?fmtData(s.ultimoVisto)+' ('+diasDesde(s.ultimoVisto)+'d atrás)':'nunca registrado')
+    +'</span>';
+
+  var obs=document.getElementById('mv-obs'); if(obs) obs.value='';
+  // Selecionar primeiro botão por padrão
+  document.querySelectorAll('.mv-tipo-btn').forEach(function(b){ b.classList.remove('b-blue'); b.classList.add('b-out'); });
+  var primeiro=document.querySelector('.mv-tipo-btn');
+  if(primeiro){ primeiro.classList.remove('b-out'); primeiro.classList.add('b-blue'); }
+
+  var m=document.getElementById('modal-visto'); if(m) m.style.display='flex';
+}
+
+function fecharModalVisto(){
+  var m=document.getElementById('modal-visto'); if(m) m.style.display='none';
+  _mvSvId=null; _mvTipoSel='';
+}
+
+function selecionarTipoVisto(btn){
+  document.querySelectorAll('.mv-tipo-btn').forEach(function(b){ b.classList.remove('b-blue'); b.classList.add('b-out'); });
+  btn.classList.remove('b-out'); btn.classList.add('b-blue');
+  _mvTipoSel = btn.getAttribute('data-tipo');
+}
+
+function confirmarVisto(){
+  if(!_mvSvId) return;
+  var s=_servs.find(function(x){ return x.id===_mvSvId; }); if(!s) return;
+  var cl=_cls.find(function(c){ return c.id===s.cliId; });
+  var obsVal=(document.getElementById('mv-obs')||{value:''}).value.trim();
+
+  s.ultimoVisto = isoHoje();
+  s.atualizado  = isoHoje();
+
+  // Registrar histórico de vistos
+  if(!s.historico) s.historico=[];
+  s.historico.push({
+    data: isoHoje(),
+    tipo: _mvTipoSel,
+    obs:  obsVal
+  });
+  // Atualizar obs se preenchida
+  if(obsVal) s.obs = obsVal;
+
+  saveServicos();
+  renderAlertas();
+  renderServicos();
+  enviarGAS(dadosParaMaiusculo(s),'UPDATE','Servicos');
+
+  // Mover para o final da agenda
+  if(s.cliId) setTimeout(function(){ moverParaFinal(s.cliId); renderAgendaHome(); },150);
+
+  fecharModalVisto();
+  var msg='&#128065; Visto: '+(s.protocolo||s.nomeServico);
+  if(cl) msg+=' — '+cl.nome.split(' ')[0];
+  if(_mvTipoSel) msg+=' ('+_mvTipoSel+')';
+  toast(msg,'ok');
+
+  // Recarregar detalhe se estiver aberto
+  if(_editId===s.cliId) verCliente(s.cliId);
+}
+
+// Fechar ao clicar fora
+window.addEventListener('load',function(){
+  var mv=document.getElementById('modal-visto');
+  if(mv) mv.addEventListener('click',function(e){ if(e.target===this) fecharModalVisto(); });
+});
+
 // =========== INIT ===========
 loadAll();
 loadServicos();
@@ -3472,6 +3566,10 @@ rotFrase(); setInterval(rotFrase,15000);
           <label style="display:block;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Observacoes</label>
           <textarea class="inp inp-ta" id="esv-obs" placeholder="Observacoes..." oninput="this.value=this.value.toUpperCase()"></textarea>
         </div>
+        <div style="grid-column:span 2" id="esv-historico-wrap" style="display:none">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">&#128203; Historico de Vistos</label>
+          <div id="esv-historico" style="background:var(--bg);border-radius:var(--r2);padding:10px;font-size:12px;max-height:150px;overflow-y:auto"></div>
+        </div>
       </div>
     </div>
     <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:space-between">
@@ -3502,6 +3600,41 @@ rotFrase(); setInterval(rotFrase,15000);
     <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
       <button class="btn b-out b-sm" onclick="fecharModalId()">Cancelar</button>
       <button class="btn b-green" onclick="salvarNovoId()">&#128190; Salvar ID</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- MODAL VISTO -->
+<div id="modal-visto" style="display:none;position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:var(--r);width:calc(100% - 24px);max-width:440px;box-shadow:0 20px 50px rgba(0,0,0,.2)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)">
+      <div style="font-size:15px;font-weight:800;color:var(--blue)">&#128065; Registrar Visto</div>
+      <button onclick="fecharModalVisto()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px;line-height:1">&#10005;</button>
+    </div>
+    <div style="padding:18px">
+      <input type="hidden" id="mv-sv-id">
+      <div style="background:var(--blue2);border-radius:var(--r2);padding:10px 13px;margin-bottom:14px;font-size:13px;color:var(--blue);font-weight:600" id="mv-info"></div>
+
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Tipo de Contato</label>
+        <div style="display:flex;flex-wrap:wrap;gap:7px" id="mv-tipo-wrap">
+          <button class="mv-tipo-btn btn b-out b-sm" data-tipo="Verificado no sistema" onclick="selecionarTipoVisto(this)">&#128269; Sistema</button>
+          <button class="mv-tipo-btn btn b-out b-sm" data-tipo="Ligacao realizada" onclick="selecionarTipoVisto(this)">&#128222; Ligacao</button>
+          <button class="mv-tipo-btn btn b-out b-sm" data-tipo="WhatsApp enviado" onclick="selecionarTipoVisto(this)">&#128172; WhatsApp</button>
+          <button class="mv-tipo-btn btn b-out b-sm" data-tipo="Aguardando retorno do cliente" onclick="selecionarTipoVisto(this)">&#9203; Aguardando</button>
+          <button class="mv-tipo-btn btn b-out b-sm" data-tipo="Cliente compareceu" onclick="selecionarTipoVisto(this)">&#128100; Presencial</button>
+        </div>
+      </div>
+
+      <div>
+        <label style="display:block;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Observacao <span style="font-weight:400">(opcional)</span></label>
+        <textarea class="inp inp-ta" id="mv-obs" placeholder="Ex: Cliente informou que vai enviar os documentos amanha..." style="min-height:70px" oninput="this.value=this.value.toUpperCase()"></textarea>
+      </div>
+    </div>
+    <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn b-out b-sm" onclick="fecharModalVisto()">Cancelar</button>
+      <button class="btn b-blue" onclick="confirmarVisto()">&#128065; Confirmar Visto</button>
     </div>
   </div>
 </div>
