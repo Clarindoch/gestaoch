@@ -527,9 +527,10 @@ if (acao === 'CRIAR_PASTA') {
   }
 
   if (acao === 'DELETE') {
-    var dados = sheet.getDataRange().getValues();
-    for (var i = 1; i &lt; dados.length; i++) {
-      if (String(dados[i][2]) === id || String(dados[i][0]) === id) {
+    var dadosDel = sheet.getDataRange().getValues();
+    for (var i = 1; i &lt; dadosDel.length; i++) {
+      // Checar coluna ID (pos 2 para clientes, pos 1 para servicos)
+      if (String(dadosDel[i][2]) === id || String(dadosDel[i][1]) === id || String(dadosDel[i][0]) === id) {
         sheet.deleteRow(i + 1); break;
       }
     }
@@ -1144,7 +1145,7 @@ function salvar(){
     atualizado: hoje()
   };
 
-  if(isNovo){ _cls.unshift(d); }
+  if(isNovo){ _cls.push(d); } // push = final da lista
   else{ var idx=_cls.findIndex(function(c){return c.id===id;}); if(idx>=0)_cls[idx]=d; }
 
   saveClientes();
@@ -1447,21 +1448,66 @@ function verCliente(id){
       +(cl.g2fa?'<div class="gov-row"><span class="gov-lbl">2FA</span><span class="gov-val">'+cl.g2fa+'</span></div>':'')
       +'</div>';
   }
-  h+='<div class="card"><div class="dado-grid">';
-  [['ID',cl.clienteId],['CPF',cl.cpf],['RG',cl.rg+(cl.orgao?' / '+cl.orgao:'')],
-   ['Nascimento',cl.nascimento],['Naturalidade',cl.naturalidade],
-   ['Estado Civil',cl.estado_civil],['Profissao',cl.profissao],
-   ['Pai',cl.pai],['Mae',cl.mae],['Titulo',cl.titulo],
-   ['WhatsApp',cl.telefone],['E-mail',cl.email],
-   ['Endereco',cl.endereco],['Cidade/UF',cl.cidade],['CEP',cl.cep],
-   ['Endereco 2',cl.endereco2],['Cidade 2',cl.cidade2],['CEP 2',cl.cep2],
-   ['Proprietario',cl.prop_nome],['CPF Prop.',cl.prop_cpf],
-   ['Obs',cl.obs]
-  ].forEach(function(p){
-    if(!p[1]) return;
-    h+='<div class="dado-cel"><div class="dado-lbl">'+p[0]+'</div><div class="dado-val">'+p[1]+'</div></div>';
-  });
-  h+='</div></div>';
+    // Dados pessoais — mostrar TODOS os campos, mesmo vazios
+  h+='<div class="card">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+  h+='<div class="sec" style="margin:0;border:0;padding:0">&#128100; Dados Pessoais</div>';
+  h+='<button class="btn b-blue b-xs" onclick="editarAtual()">&#9998; Editar</button>';
+  h+='</div>';
+
+  function exibir(lbl, val){
+    var v = val ? String(val).trim() : '';
+    var cor = v ? 'color:var(--text)' : 'color:#bbb';
+    var txt = v || '— nao informado';
+    return '<div class="dado-cel" style="border-left:3px solid '+(v?'var(--blue)':'#eee')+'">'
+      +'<div class="dado-lbl">'+lbl+'</div>'
+      +'<div class="dado-val" style="'+cor+'">'+txt+'</div>'
+      +'</div>';
+  }
+
+  h+='<div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Identificacao</div>';
+  h+='<div class="dado-grid">';
+  h+=exibir('ID',cl.clienteId);
+  h+=exibir('Tipo',cl.tipo);
+  h+=exibir('CPF',cl.cpf);
+  h+=exibir('RG',cl.rg?(cl.rg+(cl.orgao?' / '+cl.orgao:'')):'');
+  h+=exibir('Nascimento',cl.nascimento);
+  h+=exibir('Naturalidade',cl.naturalidade);
+  h+=exibir('Estado Civil',cl.estado_civil);
+  h+=exibir('Profissao',cl.profissao);
+  h+=exibir('Titulo Eleitor',cl.titulo);
+  h+=exibir('Pai',cl.pai);
+  h+=exibir('Mae',cl.mae);
+  h+='</div>';
+
+  h+='<div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 8px">Contato</div>';
+  h+='<div class="dado-grid">';
+  h+=exibir('WhatsApp',cl.telefone);
+  h+=exibir('E-mail',cl.email);
+  h+='</div>';
+
+  h+='<div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 8px">Endereco</div>';
+  h+='<div class="dado-grid">';
+  h+=exibir('Logradouro',cl.endereco);
+  h+=exibir('Cidade/UF',cl.cidade);
+  h+=exibir('CEP',cl.cep);
+  h+=exibir('Endereco 2',cl.endereco2);
+  h+=exibir('Cidade 2',cl.cidade2);
+  h+=exibir('CEP 2',cl.cep2);
+  h+='</div>';
+
+  h+='<div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 8px">Proprietario do Imovel</div>';
+  h+='<div class="dado-grid">';
+  h+=exibir('Nome',cl.prop_nome);
+  h+=exibir('CPF',cl.prop_cpf);
+  h+=exibir('RG',cl.prop_rg?(cl.prop_rg+(cl.prop_orgao?' / '+cl.prop_orgao:'')):'');
+  h+='</div>';
+
+  if(cl.obs){
+    h+='<div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 6px">Observacoes</div>';
+    h+='<div style="padding:10px;background:var(--bg);border-radius:var(--r2);font-size:13px;color:var(--dim);font-style:italic">'+cl.obs+'</div>';
+  }
+  h+='</div>';
   // Serviços do cliente
   var servsCli       = _servs.filter(function(s){ return s.cliId===id; });
   var servsAtivos    = servsCli.filter(function(s){ return s.status!=='deferido'&&s.status!=='indeferido'; });
@@ -2675,7 +2721,11 @@ function gerarRelatorio(){
   var periodo=(document.getElementById('rel-periodo')||{value:'geral'}).value;
   var tipoFilt=(document.getElementById('rel-tipo')||{value:''}).value;
   var dh=new Date(); dh.setHours(0,0,0,0);
-  var inicioSemana=new Date(dh); inicioSemana.setDate(dh.getDate()-dh.getDay());
+  // Semana: segunda a domingo
+  var inicioSemana=new Date(dh);
+  var diaSemana = dh.getDay(); // 0=dom,1=seg,...,6=sab
+  var diasAteSeg = diaSemana===0 ? 6 : diaSemana-1; // quantos dias voltar ate segunda
+  inicioSemana.setDate(dh.getDate()-diasAteSeg);
   var inicioMes=new Date(dh.getFullYear(),dh.getMonth(),1);
   var inicioSemPassada=new Date(inicioSemana); inicioSemPassada.setDate(inicioSemPassada.getDate()-7);
   var fimSemPassada=new Date(inicioSemana); fimSemPassada.setDate(fimSemPassada.getDate()-1);
@@ -2684,12 +2734,14 @@ function gerarRelatorio(){
   var av=document.getElementById('rel-aviso-sexta');
   if(av) av.style.display=dh.getDay()===5?'block':'none';
 
-  // Filtrar clientes
+  // Filtrar clientes — se nenhum selecionado, mostra todos
   var clsFilt=_cls.filter(function(cl){
     if(tipoFilt && cl.tipo!==tipoFilt) return false;
-    if(_relClisSel.length && _relClisSel.indexOf(cl.id)<0) return false;
+    if(_relClisSel.length>0 && _relClisSel.indexOf(cl.id)<0) return false;
     return true;
   });
+  // Ordenar por nome
+  clsFilt.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
 
   // Filtrar serviços
   var servsFilt=_servs.filter(function(s){
