@@ -1702,8 +1702,7 @@ function verCliente(id){
         if(!pastaRaizId){ toast('Configure a pasta raiz no Config','err'); return; }
         toast('Criando pasta...','warn');
         var qs='acao=CRIAR_PASTA&pastaRaiz='+encodeURIComponent(pastaRaizId)+'&nomePasta='+encodeURIComponent(nomePasta(cl2));
-        fetch(_gasUrl+'?'+qs)
-          .then(function(r){ return r.json(); })
+        gasFetch(qs)
           .then(function(res){
             if(res.ok&&res.data){
               var url='https://drive.google.com/drive/folders/'+res.data.pastaId;
@@ -1792,8 +1791,7 @@ function copiarGAS(){
 function testarConexao(){
   if(!_gasUrl){ toast('Cole a URL do GAS primeiro','err'); return; }
   toast('Testando conexao...','warn');
-  fetch(_gasUrl+'?acao=GET_ALL&sheet=Clientes')
-    .then(function(r){return r.json();})
+  gasFetch('acao=GET_ALL&sheet=Clientes')
     .then(function(d){
       if(d.ok) toast('&#10003; Conexao OK! GAS respondendo normalmente.','ok');
       else toast('Conectou mas com erro: '+(d.error||'desconhecido'),'err');
@@ -1809,8 +1807,7 @@ function sincronizarTudo(){
   toast('Buscando dados da planilha...','warn');
 
   // 1. Primeiro busca o que há na planilha
-  fetch(_gasUrl+'?acao=GET_ALL&sheet=Clientes')
-    .then(function(r){ return r.json(); })
+  gasFetch('acao=GET_ALL&sheet=Clientes')
     .then(function(res){
       var remotos = (res.ok && res.data) ? (res.data.clientes||res.data||[]) : [];
 
@@ -1871,7 +1868,7 @@ function sincronizarTudo(){
           var qs='acao=UPSERT&sheet=Clientes&'+Object.keys(d).map(function(k){
             return encodeURIComponent(k)+'='+encodeURIComponent(d[k]||'');
           }).join('&');
-          fetch(_gasUrl+'?'+qs)
+          gasFetch(qs)
             .then(function(){ done++; if(done===total) fim(); })
             .catch(function(){ done++; erros++; if(done===total) fim(); });
         }, i*300);
@@ -1893,7 +1890,7 @@ function syncSoEnviar(){
       var qs='acao=UPSERT&sheet=Clientes&'+Object.keys(d).map(function(k){
         return encodeURIComponent(k)+'='+encodeURIComponent(d[k]||'');
       }).join('&');
-      fetch(_gasUrl+'?'+qs)
+      gasFetch(qs)
         .then(function(){ done++; if(done===total) toast('Enviado! '+done+' registros','ok'); })
         .catch(function(){ done++; erros++; });
     }, i*300);
@@ -1904,8 +1901,7 @@ function syncSoEnviar(){
 function enviarGAS(d,acao,sheet){
   if(!_gasUrl) return;
   var p='acao='+acao+'&sheet='+(sheet||'Clientes')+'&'+Object.keys(d).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(d[k]||'');}).join('&');
-  fetch(_gasUrl+'?'+p)
-    .then(function(r){return r.json();})
+  gasFetch(p)
     .then(function(d){
       var bar=document.getElementById('sync-bar');
       var msg=document.getElementById('sync-msg');
@@ -2419,8 +2415,7 @@ function salvarDocs(){
     var qs='acao=SALVAR_CONFIG&'+Object.keys(cfg).map(function(k){
       return encodeURIComponent(k)+'='+encodeURIComponent(cfg[k]||'');
     }).join('&');
-    fetch(_gasUrl+'?'+qs)
-      .then(function(r){return r.json();})
+    gasFetch(qs)
       .then(function(res){
         if(res.ok) toast('Configuracoes salvas no navegador e na planilha!','ok');
         else toast('Salvo no navegador (erro ao salvar na planilha)','warn');
@@ -2433,8 +2428,7 @@ function salvarDocs(){
 
 function carregarConfigDaPlanilha(){
   if(!_gasUrl) return;
-  fetch(_gasUrl+'?acao=LER_CONFIG')
-    .then(function(r){ return r.json(); })
+  gasFetch('acao=LER_CONFIG')
     .then(function(res){
       if(!res.ok || !res.data || !res.data.config) return;
       var remoto = res.data.config;
@@ -2612,8 +2606,7 @@ function gerarDocumentos(modo){
 
     // Delay entre chamadas para evitar limite do GAS
     setTimeout(function(){
-      fetch(_gasUrl+'?'+qs)
-        .then(function(r){ return r.json(); })
+      gasFetch(qs)
         .then(function(res){
           done++;
           if(progDiv) progDiv.textContent='Gerando '+done+'/'+selecionados.length+'...';
@@ -3067,8 +3060,7 @@ function criarPastaCliente(){
     return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
   }).join('&');
 
-  fetch(_gasUrl+'?'+qs)
-    .then(function(r){ return r.json(); })
+  gasFetch(qs)
     .then(function(res){
       var div=document.getElementById('pasta-cli-resultado');
       if(res.ok && res.data){
@@ -3455,8 +3447,7 @@ function enviarFilaSync(){
     return encodeURIComponent(k)+'='+encodeURIComponent(item.dados[k]||'');
   }).join('&');
   var qs='acao='+item.acao+'&sheet='+(item.sheet||'Clientes')+'&'+p;
-  fetch(_gasUrl+'?'+qs)
-    .then(function(r){ return r.json(); })
+  gasFetch(qs)
     .then(function(res){
       if(res.ok){
         _filaSync.shift(); saveFila();
@@ -3480,8 +3471,7 @@ function enviarGAS(d, acao, sheet){
   }
   var p='acao='+acao+'&sheet='+(sheet||'Clientes')+'&'
     +Object.keys(d).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(d[k]||'');}).join('&');
-  fetch(_gasUrl+'?'+p)
-    .then(function(r){ return r.json(); })
+  gasFetch(p)
     .then(function(res){
       var bar=document.getElementById('sync-bar');
       var msg=document.getElementById('sync-msg');
@@ -3812,8 +3802,7 @@ function syncCompleto(){
         +Object.keys(d).map(function(k){
           return encodeURIComponent(k)+'='+encodeURIComponent(d[k]||'');
         }).join('&');
-      fetch(_gasUrl+'?'+qs)
-        .then(function(r){ return r.json(); })
+      gasFetch(qs)
         .then(function(res){
           done++;
           if(!res.ok) erros++;
@@ -3843,8 +3832,7 @@ function importarDaPlanilha(){
   toast('Importando da planilha...','warn');
 
   // Buscar clientes
-  fetch(_gasUrl+'?acao=GET_ALL&sheet=Clientes')
-    .then(function(r){ return r.json(); })
+  gasFetch('acao=GET_ALL&sheet=Clientes')
     .then(function(res){
       if(!res.ok || !res.data) return;
       var remotos = res.data.clientes || res.data || [];
@@ -3941,8 +3929,7 @@ function importarDaPlanilha(){
     });
 
   // Buscar servicos
-  fetch(_gasUrl+'?acao=GET_ALL&sheet=Servicos')
-    .then(function(r){ return r.json(); })
+  gasFetch('acao=GET_ALL&sheet=Servicos')
     .then(function(res){
       if(!res.ok || !res.data) return;
       var remotos = res.data.clientes || res.data || [];
@@ -4081,6 +4068,22 @@ function autoPreencherDocsConfig(){
     localStorage.setItem(CFG_DOCS_KEY, JSON.stringify(idsDefault));
     console.log('IDs dos documentos pre-configurados automaticamente');
   }
+}
+
+
+// =========== HELPER FETCH GAS (resolve problemas de CORS) ===========
+function gasFetch(qs){
+  return fetch(_gasUrl+'?'+qs, {
+    method: 'GET',
+    redirect: 'follow',
+    mode: 'cors'
+  }).then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  }).catch(function(err){
+    console.error('gasFetch erro:', err.message, '| URL:', _gasUrl);
+    throw err;
+  });
 }
 
 // =========== INIT ===========
