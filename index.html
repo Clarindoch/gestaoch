@@ -1791,11 +1791,17 @@ function copiarGAS(){
 
 function testarConexao(){
   if(!_gasUrl){ toast('Cole a URL do GAS primeiro','err'); return; }
-  toast('Testando...','warn');
-  fetch(_gasUrl+'?acao=GET_ALL')
+  toast('Testando conexao...','warn');
+  fetch(_gasUrl+'?acao=GET_ALL&sheet=Clientes')
     .then(function(r){return r.json();})
-    .then(function(d){ toast(d.ok?'Conexao OK!':'Resposta inesperada', d.ok?'ok':'err'); })
-    .catch(function(){ toast('Falha na conexao','err'); });
+    .then(function(d){
+      if(d.ok) toast('&#10003; Conexao OK! GAS respondendo normalmente.','ok');
+      else toast('Conectou mas com erro: '+(d.error||'desconhecido'),'err');
+    })
+    .catch(function(e){
+      console.log('Erro de conexao GAS:', e);
+      toast('&#10007; Falha! Provavelmente a URL esta errada ou desatualizada. Veja o passo a passo abaixo.','err');
+    });
 }
 
 function sincronizarTudo(){
