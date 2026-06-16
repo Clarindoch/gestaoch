@@ -863,6 +863,7 @@ function jsonResponse(obj) {
       <button class="btn b-blue b-sm" onclick="syncCompleto()">&#128260; Sincronizar Tudo</button>
       <button class="btn b-green b-sm" onclick="importarDaPlanilha();toast('Importando...','warn')">&#128229; Importar da Planilha</button>
       <button class="btn b-gold b-sm" onclick="varrerLocalStorage()">&#128269; Recuperar Dados do Navegador</button>
+      <button class="btn b-out b-sm" onclick="verExcluidos()">&#128465; Ver/Limpar Exclusoes</button>
     </div>
   </div>
 
@@ -1140,6 +1141,30 @@ var _logado = true;
 var _users  = [{u:'clarindo',s:'helly1218'}];
 
 // =========== STORAGE ===========
+var KEXC = 'gch_excluidos'; // IDs permanentemente excluidos (clientes e servicos)
+var _excluidos = { clientes: [], servicos: [] };
+
+function loadExcluidos(){
+  try{
+    var d = JSON.parse(localStorage.getItem(KEXC)||'{}');
+    _excluidos = { clientes: d.clientes||[], servicos: d.servicos||[] };
+  }catch(e){
+    _excluidos = { clientes: [], servicos: [] };
+  }
+}
+
+function saveExcluidos(){
+  localStorage.setItem(KEXC, JSON.stringify(_excluidos));
+}
+
+function marcarExcluido(tipo, id){
+  // tipo: 'clientes' ou 'servicos'
+  if(_excluidos[tipo].indexOf(id)<0){
+    _excluidos[tipo].push(id);
+    saveExcluidos();
+  }
+}
+
 function loadAll(){
   // Tenta a chave atual primeiro
   try{ _cls = JSON.parse(localStorage.getItem(KC)||'[]'); }catch(e){ _cls=[]; }
@@ -1346,11 +1371,22 @@ function excluirAtual(){
 }
 
 function confirmarDel(){
+  // Excluir servicos do cliente tambem (local, planilha e lista de exclusoes)
+  var servsCli = _servs.filter(function(s){ return s.cliId===_delId; });
+  servsCli.forEach(function(s){
+    marcarExcluido('servicos', s.id);
+    enviarGAS({id:s.id},'DELETE','Servicos');
+  });
+  _servs = _servs.filter(function(s){ return s.cliId!==_delId; });
+  saveServicos();
+
   _cls=_cls.filter(function(c){return c.id!==_delId;});
+  marcarExcluido('clientes', _delId);
   saveClientes();
-  enviarGAS({id:_delId},'DELETE');
+  enviarGAS({id:_delId},'DELETE','Clientes');
+
   fecharModal('modal-del'); ir('lista');
-  toast('Removido','ok');
+  toast('Cliente e servicos removidos (planilha e sistema)','ok');
 }
 
 function delRapido(id){
@@ -1931,6 +1967,7 @@ function sincronizarTudo(){
         var id = String(r.id||'').trim();
         var cpf = String(r.cpf||'').trim().replace(/\D/g,'');
         if(!id) return;
+        if(_excluidos.clientes.indexOf(id)>=0) return; // ignorar — excluido permanentemente
         // Verificar por ID ou por CPF (evita duplicar se mesmo cliente veio de dispositivo diferente)
         var existe = _cls.some(function(c){
           if(c.id===id) return true;
@@ -2310,7 +2347,12 @@ function alterarStatus(id){
 function excluirServico(id){
   if(!confirm('Excluir este servico?')) return;
   _servs=_servs.filter(function(x){ return x.id!==id; });
-  saveServicos(); renderServicos(); toast('Removido','ok');
+  marcarExcluido('servicos', id);
+  saveServicos();
+  enviarGAS({id:id},'DELETE','Servicos');
+  renderServicos();
+  renderAlertas();
+  toast('Servico removido (planilha e sistema)','ok');
 }
 
 function fmtData(d){
@@ -3503,12 +3545,13 @@ function excluirServicoModal(){
   if(!confirm('Excluir servico '+(s?s.protocolo||s.nomeServico:'')+'?')) return;
   var cliId=s?s.cliId:'';
   _servs=_servs.filter(function(x){ return x.id!==svId; });
+  marcarExcluido('servicos', svId);
   saveServicos();
   enviarGAS({id:svId},'DELETE','Servicos');
   fecharModalSv();
   if(cliId) verCliente(cliId);
   renderAlertas();
-  toast('Servico removido','ok');
+  toast('Servico removido (planilha e sistema)','ok');
 }
 
 // Fechar modal clicando fora
@@ -3992,6 +4035,7 @@ function importarDaPlanilha(){
         var clienteId  = String(r.cliente_id || r.clienteid || r.clienteId || '').trim();
         var nome       = String(r.nome || r.NOME || '').trim();
         if(!id || !nome) return;
+        if(_excluidos.clientes.indexOf(id)>=0) return; // ignorar — foi excluido permanentemente
 
         var idxLocal = _cls.findIndex(function(c){ return c.id===id; });
         var cl = {
@@ -4082,6 +4126,7 @@ function importarDaPlanilha(){
         Object.keys(rem).forEach(function(k){ r[k.toLowerCase().replace(/ /g,'_')] = rem[k]; });
         var id = String(r.id||'').trim();
         if(!id) return;
+        if(_excluidos.servicos.indexOf(id)>=0) return; // ignorar — foi excluido permanentemente
         if(_servs.some(function(s){ return s.id===id; })) return;
         _servs.push({
           id:           id,
@@ -4519,7 +4564,27 @@ function uploadArquivoChecklist(s, itemNome, file, rowEl, indice){
   reader.readAsDataURL(file);
 }
 
+
+function verExcluidos(){
+  var totalCli = _excluidos.clientes.length;
+  var totalSv  = _excluidos.servicos.length;
+  if(!totalCli && !totalSv){
+    toast('Nenhum item na lista de exclusoes','ok');
+    return;
+  }
+  var msg = 'Itens marcados como excluidos permanentemente:\n\n'
+    + totalCli + ' cliente(s)\n'
+    + totalSv + ' servico(s)\n\n'
+    + 'Limpar esta lista? (Isso permite que esses itens voltem a aparecer se ainda estiverem na planilha)';
+  if(confirm(msg)){
+    _excluidos = { clientes: [], servicos: [] };
+    saveExcluidos();
+    toast('Lista de exclusoes limpa!','ok');
+  }
+}
+
 // =========== INIT ===========
+loadExcluidos();
 loadAll();
 loadServicos();
 loadDocs();
