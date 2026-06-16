@@ -19,7 +19,9 @@
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 
 /* === TOPBAR === */
-#topbar{background:#fff;border-bottom:2px solid var(--border);height:52px;display:flex;align-items:center;padding:0 20px;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+
+#header-fixo{position:sticky;top:0;z-index:100}
+#topbar{background:#fff;border-bottom:2px solid var(--border);height:52px;display:flex;align-items:center;padding:0 20px;gap:12px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
 .tb-brand{font-size:17px;font-weight:900;flex:1}.tb-brand span{color:var(--gold)}
 .tb-badge{font-size:11px;padding:3px 11px;border-radius:99px;font-weight:700}
 .tb-cnt{background:var(--blue2);color:var(--blue);border:1px solid #c5d8f5}
@@ -172,6 +174,7 @@ select.inp option{background:#fff}
 <div id="toast"></div>
 <div id="sync-bar"><span id="sync-msg"></span></div>
 
+<div id="header-fixo">
 <!-- ========== TOPBAR ========== -->
 <div id="topbar">
   <div class="tb-brand">Gestao <span>CH</span> <span style="font-size:13px;font-weight:400;color:var(--muted)">Premium</span></div>
@@ -196,6 +199,7 @@ select.inp option{background:#fff}
   <button class="nb"    id="nb-relatorio" onclick="ir('relatorio')">&#128202; Relatorio</button>
   <button class="nb"    id="nb-alertas"  onclick="ir('alertas')">&#9888; Alertas <span id="alerta-badge" style="color:var(--red);font-weight:900"></span></button>
   <button class="nb"    id="nb-config"   onclick="ir('config')">&#9881; Config</button>
+</div>
 </div>
 
 <div id="app">
