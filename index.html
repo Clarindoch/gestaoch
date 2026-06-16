@@ -713,15 +713,15 @@ function jsonErr(msg) {
     </div>
     <div class="fg c2">
       <div class="field s2"><label>ID — Declara&#231;&#227;o de Seguran&#231;a de Acervo</label>
-        <input class="inp" id="doc-seg-acervo" placeholder="ID do Google Docs"></div>
+        <input class="inp" id="doc-seg-acervo" placeholder="ID do Google Docs" value="1arRcS7BLrf_s9zD6PyB-Im_BWpzFvLnN30mTxkQ8s9Y"></div>
       <div class="field s2"><label>ID — Declara&#231;&#227;o de Guarda de Acervo</label>
-        <input class="inp" id="doc-guarda-acervo" placeholder="ID do Google Docs"></div>
+        <input class="inp" id="doc-guarda-acervo" placeholder="ID do Google Docs" value="1w4MjQZ7ZZ5fXzApPRwcyEVLRRkp5WSblaURPHZdV9-s"></div>
       <div class="field s2"><label>ID — Declara&#231;&#227;o de 5 Anos</label>
-        <input class="inp" id="doc-cinco-anos" placeholder="ID do Google Docs"></div>
+        <input class="inp" id="doc-cinco-anos" placeholder="ID do Google Docs" value="1i8YETFm_4B0jpPh7rfHsOytIUiOKCn0GtFr_AGv6aFw"></div>
       <div class="field s2"><label>ID — Declara&#231;&#227;o de Resid&#234;ncia</label>
-        <input class="inp" id="doc-residencia" placeholder="ID do Google Docs"></div>
+        <input class="inp" id="doc-residencia" placeholder="ID do Google Docs" value="169aNkBxNE2YKsz1XbBuLImSrdCIAAlm8Rruzpq3h2a0"></div>
       <div class="field s2"><label>ID — Declara&#231;&#227;o de Inexist&#234;ncia (Inqueritos/Processos)</label>
-        <input class="inp" id="doc-inexistencia" placeholder="ID do Google Docs"></div>
+        <input class="inp" id="doc-inexistencia" placeholder="ID do Google Docs" value="1-YR3-KqJRkBucGw6GmjmAVTdQPTjebx9QCoUhS8R45c"></div>
       <div class="field s2">
         <label>Link da Pasta Raiz no Google Drive</label>
         <input class="inp" id="doc-pasta-raiz" placeholder="Cole o link da pasta: https://drive.google.com/drive/folders/..." oninput="extrairIdPasta(this)">
@@ -4059,10 +4059,35 @@ function recalcularIds(){
   });
 }
 
+
+// =========== AUTO-PREENCHER IDS DOS DOCUMENTOS (PRIMEIRA VEZ) ===========
+function autoPreencherDocsConfig(){
+  var jaTem = localStorage.getItem('gch_cfg_docs');
+  var temAlgum = false;
+  try{
+    var cfg = JSON.parse(jaTem||'{}');
+    temAlgum = !!(cfg['doc-seg-acervo'] || cfg['doc-residencia'] || cfg['doc-inexistencia']);
+  }catch(e){}
+
+  if(!temAlgum){
+    var idsDefault = {
+      'doc-seg-acervo':    '1arRcS7BLrf_s9zD6PyB-Im_BWpzFvLnN30mTxkQ8s9Y',
+      'doc-guarda-acervo': '1w4MjQZ7ZZ5fXzApPRwcyEVLRRkp5WSblaURPHZdV9-s',
+      'doc-cinco-anos':    '1i8YETFm_4B0jpPh7rfHsOytIUiOKCn0GtFr_AGv6aFw',
+      'doc-residencia':    '169aNkBxNE2YKsz1XbBuLImSrdCIAAlm8Rruzpq3h2a0',
+      'doc-inexistencia':  '1-YR3-KqJRkBucGw6GmjmAVTdQPTjebx9QCoUhS8R45c'
+    };
+    _cfgDocs = idsDefault;
+    localStorage.setItem(CFG_DOCS_KEY, JSON.stringify(idsDefault));
+    console.log('IDs dos documentos pre-configurados automaticamente');
+  }
+}
+
 // =========== INIT ===========
 loadAll();
 loadServicos();
 loadDocs();
+autoPreencherDocsConfig();
 loadFila();
 loadAgenda();
 recalcularIds();
