@@ -2605,7 +2605,7 @@ function gerarDocumentos(modo){
   var cl=_cls.find(function(c){ return c.id===cliId; });
   if(!cl){ toast('Cliente nao encontrado','err'); return; }
 
-  var pastaRaiz=_cfgDocs['doc-pasta-raiz']||'';
+  var pastaRaizId=_cfgDocs['doc-pasta-raiz-id']||extrairIdDaUrl(_cfgDocs['doc-pasta-raiz']||'');
   var progDiv=document.getElementById('doc-progresso');
   if(progDiv){ progDiv.style.display='block'; progDiv.textContent='Gerando 0/'+selecionados.length+'...'; }
 
@@ -2624,10 +2624,10 @@ function gerarDocumentos(modo){
     }
 
     var params={
-      acao:'GERAR_DOC', docId:docId, pastaRaiz:pastaRaiz,
-      nomePasta:nomePasta(cl),
+      acao:'GERAR_DOC', docId:docId,
+      pastaRaiz: pastaRaizId,
+      nomePasta: nomePasta(cl),
       pastaClienteId: cl.pastaId || '',
-      pastaRaizId:(_cfgDocs['doc-pasta-raiz-id']||extrairIdDaUrl((_cfgDocs['doc-pasta-raiz']||''))),
       nomeDoc:NOMES_DOCS[tipo]+' - '+cl.nome.split(' ')[0].toUpperCase(),
       modo:modo,
       NOME:cl.nome, CPF:cl.cpf||'', RG:cl.rg||'', ORGAO:cl.orgao||'',
