@@ -2476,6 +2476,8 @@ function dataHoje(){
 }
 
 function gerarDocumentos(modo){
+  // Recarregar config mais recente do localStorage
+  try{ _cfgDocs = JSON.parse(localStorage.getItem(CFG_DOCS_KEY)||'{}'); }catch(e){}
   var cliId=(document.getElementById('doc-cli-sel')||{value:''}).value;
   var selecionados=getDocsSelecionados();
   if(!cliId){ toast('Selecione um cliente','err'); return; }
@@ -2497,6 +2499,8 @@ function gerarDocumentos(modo){
     if(!docId){
       erros++;
       done++;
+      toast('ID nao configurado para: '+(NOMES_DOCS[tipo]||tipo),'err');
+      console.log('Docs configurados:', _cfgDocs);
       if(done===selecionados.length) finalizarGeracao(done,erros,progDiv);
       return;
     }
