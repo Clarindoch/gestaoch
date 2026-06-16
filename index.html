@@ -549,7 +549,7 @@ if (acao === 'LER_CONFIG') {
     var dadosExist = sheet.getDataRange().getValues();
     var idCol = sheetName === 'Servicos' ? 1 : 2; // coluna do ID (0-indexed)
     var encontrou = false;
-    for (var i = 1; i < dadosExist.length; i++) {
+    for (var i = 1; i &lt; dadosExist.length; i++) {
       if (String(dadosExist[i][idCol]) === String(params.id)) {
         // UPDATE
         var linhaUp = montarLinha(params, sheetName);
@@ -608,18 +608,21 @@ if (acao === 'LER_CONFIG') {
 
 // ========== GERAR DOCUMENTO (Mala Direta) ==========
 function gerarDoc(params) {
-  var docId     = params.docId     || '';
-  var pastaRaiz = params.pastaRaiz || '';
-  var nomePasta = params.nomePasta || 'CLIENTE';
-  var nomeDoc   = params.nomeDoc   || 'Documento';
-  var modo      = params.modo      || 'ambos';
+  var docId          = params.docId          || '';
+  var pastaRaiz       = params.pastaRaiz       || '';
+  var pastaClienteId  = params.pastaClienteId  || '';
+  var nomePasta       = params.nomePasta       || 'CLIENTE';
+  var nomeDoc         = params.nomeDoc         || 'Documento';
+  var modo            = params.modo            || 'ambos';
 
   if (!docId) return jsonErr('ID do documento nao configurado');
 
   try {
-    // Criar ou buscar pasta do cliente
+    // Usar a pasta do cliente diretamente se ja existir (vinculada no cadastro)
     var pasta;
-    if (pastaRaiz) {
+    if (pastaClienteId) {
+      pasta = DriveApp.getFolderById(pastaClienteId);
+    } else if (pastaRaiz) {
       var raiz   = DriveApp.getFolderById(pastaRaiz);
       var pastas = raiz.getFoldersByName(nomePasta);
       pasta = pastas.hasNext() ? pastas.next() : raiz.createFolder(nomePasta);
@@ -642,7 +645,9 @@ function gerarDoc(params) {
     doc.saveAndClose();
 
     var resultado = {
-      docUrl: 'https://docs.google.com/document/d/'+copia.getId()+'/edit'
+      docUrl: 'https://docs.google.com/document/d/'+copia.getId()+'/edit',
+      pastaUsadaId: pasta.getId(),
+      pastaUsadaUrl: 'https://drive.google.com/drive/folders/'+pasta.getId()
     };
 
     // Gerar PDF
@@ -2604,6 +2609,7 @@ function gerarDocumentos(modo){
     var params={
       acao:'GERAR_DOC', docId:docId, pastaRaiz:pastaRaiz,
       nomePasta:nomePasta(cl),
+      pastaClienteId: cl.pastaId || '',
       pastaRaizId:(_cfgDocs['doc-pasta-raiz-id']||extrairIdDaUrl((_cfgDocs['doc-pasta-raiz']||''))),
       nomeDoc:NOMES_DOCS[tipo]+' - '+cl.nome.split(' ')[0].toUpperCase(),
       modo:modo,
@@ -2631,6 +2637,17 @@ function gerarDocumentos(modo){
               pdfUrl:res.data&&res.data.pdfUrl?res.data.pdfUrl:'',
               gerado:hoje()
             });
+            // Se o cliente ainda nao tinha pasta vinculada, salvar agora
+            if(res.data && res.data.pastaUsadaId && !cl.pastaId){
+              var idxCl = _cls.findIndex(function(c){ return c.id===cliId; });
+              if(idxCl>=0){
+                _cls[idxCl].pastaId  = res.data.pastaUsadaId;
+                _cls[idxCl].pastaUrl = res.data.pastaUsadaUrl;
+                cl.pastaId  = res.data.pastaUsadaId;
+                cl.pastaUrl = res.data.pastaUsadaUrl;
+                saveClientes();
+              }
+            }
             if((modo==='docs'||modo==='ambos') && res.data&&res.data.docUrl)
               window.open(res.data.docUrl,'_blank');
             if((modo==='pdf'||modo==='ambos') && res.data&&res.data.pdfUrl)
