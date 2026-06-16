@@ -448,6 +448,7 @@ function doGet(e) { return doPost(e); }
 
 function doPost(e) {
   var params = e.parameter || {};
+  _CALLBACK_GLOBAL = params.callback || null;
   var acao   = params.acao || 'INSERT';
 
   // Redirecionar para gerarDoc se necessario
@@ -680,15 +681,26 @@ function montarLinha(params, sheetName) {
   }
 }
 
+var _CALLBACK_GLOBAL = null;
+
 function jsonOk(obj) {
-  return ContentService
-    .createTextOutput(JSON.stringify({ok: true, data: obj}))
-    .setMimeType(ContentService.MimeType.JSON);
+  return jsonResponse({ok: true, data: obj});
 }
 
 function jsonErr(msg) {
+  return jsonResponse({ok: false, error: msg});
+}
+
+function jsonResponse(obj) {
+  var texto = JSON.stringify(obj);
+  if (_CALLBACK_GLOBAL) {
+    // Formato JSONP: nomeCallback(dados);
+    return ContentService
+      .createTextOutput(_CALLBACK_GLOBAL + '(' + texto + ');')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
   return ContentService
-    .createTextOutput(JSON.stringify({ok: false, error: msg}))
+    .createTextOutput(texto)
     .setMimeType(ContentService.MimeType.JSON);
 }</textarea>
     <div style="margin-top:10px">
@@ -4072,17 +4084,34 @@ function autoPreencherDocsConfig(){
 
 
 // =========== HELPER FETCH GAS (resolve problemas de CORS) ===========
+var _gasCbCount = 0;
 function gasFetch(qs){
-  return fetch(_gasUrl+'?'+qs, {
-    method: 'GET',
-    redirect: 'follow',
-    mode: 'cors'
-  }).then(function(r){
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    return r.json();
-  }).catch(function(err){
-    console.error('gasFetch erro:', err.message, '| URL:', _gasUrl);
-    throw err;
+  // Usa JSONP via tag <script> para contornar restricoes de CORS do Apps Script
+  return new Promise(function(resolve, reject){
+    var cbName = '_gasCb' + (_gasCbCount++);
+    var timeoutId = setTimeout(function(){
+      cleanup();
+      reject(new Error('Timeout - GAS nao respondeu em 20s'));
+    }, 20000);
+
+    function cleanup(){
+      clearTimeout(timeoutId);
+      delete window[cbName];
+      if(script && script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[cbName] = function(data){
+      cleanup();
+      resolve(data);
+    };
+
+    var script = document.createElement('script');
+    script.src = _gasUrl + '?' + qs + '&callback=' + cbName;
+    script.onerror = function(){
+      cleanup();
+      reject(new Error('Falha ao carregar script GAS'));
+    };
+    document.body.appendChild(script);
   });
 }
 
