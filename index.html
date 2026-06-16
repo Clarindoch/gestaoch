@@ -437,6 +437,8 @@ select.inp option{background:#fff}
     </p>
         <textarea class="inp inp-ta" id="gas-code" readonly
       style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5">id="gas-code" readonly
+      style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5"&gt;id="gas-code" readonly
+      style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5"&gt;id="gas-code" readonly
       style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5"&gt;// ========================================
 // GESTAO CH Premium — Google Apps Script
 // Versao com Cadastro + Documentos
@@ -486,7 +488,10 @@ if (acao === 'SALVAR_CONFIG') {
     sheetCfg.appendRow(['CHAVE', 'VALOR']);
     sheetCfg.getRange(1,1,1,2).setFontWeight('bold').setBackground('#1a5fa8').setFontColor('#ffffff');
   }
-  var chavesConfig = ['doc-seg-acervo','doc-guarda-acervo','doc-cinco-anos','doc-residencia','doc-inexistencia','doc-pasta-raiz','doc-pasta-raiz-id'];
+  var chavesConfig = ['doc-seg-acervo','doc-guarda-acervo','doc-cinco-anos','doc-residencia','doc-inexistencia',
+    'doc-pasta-raiz','doc-pasta-raiz-id',
+    'doc-pasta-raiz-ctr','doc-pasta-raiz-ctr-id',
+    'doc-pasta-raiz-ch','doc-pasta-raiz-ch-id'];
   var dadosCfg = sheetCfg.getDataRange().getValues();
   chavesConfig.forEach(function(chave) {
     var valor = params[chave] || '';
@@ -654,8 +659,10 @@ function gerarDoc(params) {
     var doc      = DocumentApp.openById(copia.getId());
     var body     = doc.getBody();
 
-    var vars = ['NOME','CPF','RG','ORGAO','NASCIMENTO','ENDERECO',
-                'CIDADE','CEP','NOME_PAI','NOME_MAE','DATA_HOJE'];
+    var vars = ['NOME','CPF','RG','ORGAO','NASCIMENTO','NATURALIDADE',
+                'ESTADO_CIVIL','PROFISSAO','ENDERECO','CIDADE','CEP',
+                'TELEFONE','EMAIL','TITULO','NOME_PAI','NOME_MAE',
+                'PROP_NOME','PROP_CPF','PROP_RG','PROP_ORGAO','DATA_HOJE'];
     vars.forEach(function(v){
       body.replaceText('\{\{'+v+'\}\}', params[v] || '');
     });
@@ -757,12 +764,20 @@ function jsonResponse(obj) {
       <div class="field s2"><label>ID — Declara&#231;&#227;o de Inexist&#234;ncia (Inqueritos/Processos)</label>
         <input class="inp" id="doc-inexistencia" placeholder="ID do Google Docs" value="1-YR3-KqJRkBucGw6GmjmAVTdQPTjebx9QCoUhS8R45c"></div>
       <div class="field s2">
-        <label>Link da Pasta Raiz no Google Drive</label>
+        <label>Link da Pasta Raiz Geral (fallback, quando nao houver tipo definido)</label>
         <input class="inp" id="doc-pasta-raiz" placeholder="Cole o link da pasta: https://drive.google.com/drive/folders/..." oninput="extrairIdPasta(this)">
         <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
           <span id="pasta-raiz-status" style="font-size:12px;color:var(--dim)">Nenhuma pasta configurada</span>
           <button class="btn b-out b-xs" onclick="abrirPastaRaiz()" id="btn-abrir-pasta" style="display:none">&#128193; Abrir no Drive</button>
         </div>
+      </div>
+      <div class="field">
+        <label>&#127942; Link da Pasta Raiz — CTR</label>
+        <input class="inp" id="doc-pasta-raiz-ctr" placeholder="https://drive.google.com/drive/folders/..." value="https://drive.google.com/drive/folders/1X0flh5p4gnv5rf8qdIbb58yPMi2XwtRs">
+      </div>
+      <div class="field">
+        <label>&#127970; Link da Pasta Raiz — CH</label>
+        <input class="inp" id="doc-pasta-raiz-ch" placeholder="https://drive.google.com/drive/folders/..." value="https://drive.google.com/drive/folders/1Xw4iZt7tcxxrv-SkIOlepq0BFBlwzKYo">
       </div>
       <div class="field s2">
         <label>Criar Pasta de Cliente Manualmente</label>
@@ -2432,11 +2447,17 @@ function loadDocs(){
 }
 
 function salvarDocs(){
-  var ids = ['doc-seg-acervo','doc-guarda-acervo','doc-cinco-anos','doc-residencia','doc-inexistencia','doc-pasta-raiz'];
+  var ids = ['doc-seg-acervo','doc-guarda-acervo','doc-cinco-anos','doc-residencia','doc-inexistencia','doc-pasta-raiz','doc-pasta-raiz-ctr','doc-pasta-raiz-ch'];
   var cfg = _cfgDocs || {};
   ids.forEach(function(id){ cfg[id] = (document.getElementById(id)||{value:''}).value.trim(); });
   if(cfg['doc-pasta-raiz']){
     cfg['doc-pasta-raiz-id'] = extrairIdDaUrl(cfg['doc-pasta-raiz']);
+  }
+  if(cfg['doc-pasta-raiz-ctr']){
+    cfg['doc-pasta-raiz-ctr-id'] = extrairIdDaUrl(cfg['doc-pasta-raiz-ctr']);
+  }
+  if(cfg['doc-pasta-raiz-ch']){
+    cfg['doc-pasta-raiz-ch-id'] = extrairIdDaUrl(cfg['doc-pasta-raiz-ch']);
   }
   _cfgDocs = cfg;
   localStorage.setItem(CFG_DOCS_KEY, JSON.stringify(cfg));
@@ -2487,7 +2508,7 @@ function carregarConfigDaPlanilha(){
 function renderConfigDocs(){
   preencherSelectPastaCliente();
   if(!_cfgDocs) return;
-  var ids = ['doc-seg-acervo','doc-guarda-acervo','doc-cinco-anos','doc-residencia','doc-inexistencia','doc-pasta-raiz'];
+  var ids = ['doc-seg-acervo','doc-guarda-acervo','doc-cinco-anos','doc-residencia','doc-inexistencia','doc-pasta-raiz','doc-pasta-raiz-ctr','doc-pasta-raiz-ch'];
   ids.forEach(function(id){
     var el=document.getElementById(id);
     if(el && _cfgDocs[id]) el.value=_cfgDocs[id];
@@ -2605,7 +2626,16 @@ function gerarDocumentos(modo){
   var cl=_cls.find(function(c){ return c.id===cliId; });
   if(!cl){ toast('Cliente nao encontrado','err'); return; }
 
-  var pastaRaizId=_cfgDocs['doc-pasta-raiz-id']||extrairIdDaUrl(_cfgDocs['doc-pasta-raiz']||'');
+  // Escolhe a pasta raiz conforme o tipo do cliente (CTR ou CH), com fallback para a raiz geral
+  var pastaRaizId='';
+  if(cl && cl.tipo==='CTR'){
+    pastaRaizId = _cfgDocs['doc-pasta-raiz-ctr-id'] || extrairIdDaUrl(_cfgDocs['doc-pasta-raiz-ctr']||'');
+  } else if(cl && cl.tipo==='CH'){
+    pastaRaizId = _cfgDocs['doc-pasta-raiz-ch-id'] || extrairIdDaUrl(_cfgDocs['doc-pasta-raiz-ch']||'');
+  }
+  if(!pastaRaizId){
+    pastaRaizId = _cfgDocs['doc-pasta-raiz-id'] || extrairIdDaUrl(_cfgDocs['doc-pasta-raiz']||'');
+  }
   var progDiv=document.getElementById('doc-progresso');
   if(progDiv){ progDiv.style.display='block'; progDiv.textContent='Gerando 0/'+selecionados.length+'...'; }
 
@@ -2630,10 +2660,15 @@ function gerarDocumentos(modo){
       pastaClienteId: cl.pastaId || '',
       nomeDoc:NOMES_DOCS[tipo]+' - '+cl.nome.split(' ')[0].toUpperCase(),
       modo:modo,
-      NOME:cl.nome, CPF:cl.cpf||'', RG:cl.rg||'', ORGAO:cl.orgao||'',
-      NASCIMENTO:cl.nascimento||'', ENDERECO:cl.endereco||'',
-      CIDADE:cl.cidade||'', CEP:cl.cep||'',
-      NOME_PAI:cl.pai||'', NOME_MAE:cl.mae||'', DATA_HOJE:dataHoje()
+      NOME:cl.nome||'', CPF:cl.cpf||'', RG:cl.rg||'', ORGAO:cl.orgao||'',
+      NASCIMENTO:cl.nascimento||'', NATURALIDADE:cl.naturalidade||'',
+      ESTADO_CIVIL:cl.estado_civil||'', PROFISSAO:cl.profissao||'',
+      ENDERECO:cl.endereco||'', CIDADE:cl.cidade||'', CEP:cl.cep||'',
+      TELEFONE:cl.telefone||'', EMAIL:cl.email||'', TITULO:cl.titulo||'',
+      NOME_PAI:cl.pai||'', NOME_MAE:cl.mae||'',
+      PROP_NOME:cl.prop_nome||'', PROP_CPF:cl.prop_cpf||'',
+      PROP_RG:cl.prop_rg||'', PROP_ORGAO:cl.prop_orgao||'',
+      DATA_HOJE:dataHoje()
     };
 
     var qs=Object.keys(params).map(function(k){
@@ -4135,7 +4170,11 @@ function autoPreencherDocsConfig(){
       'doc-guarda-acervo': '1w4MjQZ7ZZ5fXzApPRwcyEVLRRkp5WSblaURPHZdV9-s',
       'doc-cinco-anos':    '1i8YETFm_4B0jpPh7rfHsOytIUiOKCn0GtFr_AGv6aFw',
       'doc-residencia':    '169aNkBxNE2YKsz1XbBuLImSrdCIAAlm8Rruzpq3h2a0',
-      'doc-inexistencia':  '1-YR3-KqJRkBucGw6GmjmAVTdQPTjebx9QCoUhS8R45c'
+      'doc-inexistencia':  '1-YR3-KqJRkBucGw6GmjmAVTdQPTjebx9QCoUhS8R45c',
+      'doc-pasta-raiz-ctr':    'https://drive.google.com/drive/folders/1X0flh5p4gnv5rf8qdIbb58yPMi2XwtRs',
+      'doc-pasta-raiz-ctr-id': '1X0flh5p4gnv5rf8qdIbb58yPMi2XwtRs',
+      'doc-pasta-raiz-ch':     'https://drive.google.com/drive/folders/1Xw4iZt7tcxxrv-SkIOlepq0BFBlwzKYo',
+      'doc-pasta-raiz-ch-id':  '1Xw4iZt7tcxxrv-SkIOlepq0BFBlwzKYo'
     };
     _cfgDocs = idsDefault;
     localStorage.setItem(CFG_DOCS_KEY, JSON.stringify(idsDefault));
