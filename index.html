@@ -146,10 +146,14 @@ select.inp option{background:#fff}
 }
 @media print{
   #topbar,#frase-bar,#nav,#pg-inicio,#pg-cadastro,#pg-lista,
-  #pg-detalhe,#pg-servicos,#pg-docs,#pg-alertas,.btn-print-hide{display:none!important}
+  #pg-detalhe,#pg-servicos,#pg-docs,#pg-alertas,.btn-print-hide,
+  .card,.no-print{display:none!important}
   #pg-relatorio{display:block!important}
+  #rel-itens-wrap,#rel-imprimivel{display:block!important}
+  .print-only{display:block!important}
   body{background:#fff}
 }
+.print-only{display:none}
 
 .doc-check-item{
   display:flex;align-items:center;gap:14px;
@@ -1063,17 +1067,24 @@ function jsonResponse(obj) {
 <!-- RELATORIO -->
 <div class="pg" id="pg-relatorio">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-    <div style="font-size:17px;font-weight:800">&#128202; Relatorio de Servicos</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn b-blue b-sm" onclick="gerarRelatorio('semanal')">&#128197; Esta Semana</button>
-      <button class="btn b-out b-sm" onclick="gerarRelatorio('geral')">&#128202; Geral</button>
-      <button class="btn b-green b-sm" onclick="imprimirRelatorio()">&#128438; Imprimir PDF</button>
-    </div>
+    <div style="font-size:17px;font-weight:800">&#128202; Relatorio para Envio</div>
+    <div style="display:flex;gap:8px"><button class="btn b-out b-sm" onclick="limparSelCliRel()">&#10005; Limpar Selecao</button><button class="btn b-green b-sm" onclick="imprimirRelatorio()">&#128438; Imprimir / PDF</button></div>
   </div>
+
   <div id="rel-aviso-sexta" style="display:none;background:#e6f5ee;border:1.5px solid #a7d4bb;border-radius:var(--r2);padding:12px 16px;margin-bottom:14px;font-size:13px;color:var(--green);font-weight:700">
     &#128197; Hoje e sexta-feira! Hora de gerar o relatorio semanal.
   </div>
-  <div id="rel-conteudo"></div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="sec" style="margin-top:0">&#128269; Escolher Clientes</div>
+    <div style="position:relative">
+      <input class="inp" id="rel-cli-busca" placeholder="Buscar cliente por nome, CPF ou ID..." oninput="buscarCliRel()" autocomplete="off">
+      <div id="rel-cli-resultados" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:0 8px 20px rgba(0,0,0,.1);z-index:50;max-height:280px;overflow-y:auto;margin-top:4px"></div>
+    </div>
+    <div id="rel-cli-selecionados" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
+  </div>
+
+  <div id="rel-itens-wrap"></div>
 </div>
 
 </div><!-- /app -->
@@ -1361,7 +1372,7 @@ function ir(pg){
   if(pg==='lista')   renderLista();
   if(pg==='config'){  renderConfig(); renderConfigDocs(); }
   if(pg==='docs'){ renderDocsGerados(); }
-  if(pg==='relatorio'){ gerarRelatorio('semanal'); verificarSexta(); }
+  if(pg==='relatorio'){ renderTagsSel(); renderRelatorioItens(); verificarSexta(); }
   if(pg==='alertas'){
     renderAlertas();
     var als=calcularAlertas();
@@ -2954,6 +2965,22 @@ function verificarLimiteDoc(cliId, tipo){
 // =========== RELATÓRIO NOVO ===========
 var _relClisSel = []; // IDs dos clientes selecionados
 
+
+
+function limparSelCliRel(){
+  _relClisSel=[];
+  renderTagsSel();
+  var inp=document.getElementById('rel-cli-busca'); if(inp) inp.value='';
+  renderRelatorioItens();
+}
+
+
+
+
+// =========== RELATORIO PARA ENVIO (simples) ===========
+var _relClisSel = []; // IDs dos clientes escolhidos para o relatorio
+var _relObsTemp = {}; // observacoes digitadas na hora, por id de servico
+
 function buscarCliRel(){
   var q=(document.getElementById('rel-cli-busca')||{value:''}).value.toLowerCase().trim();
   var res=document.getElementById('rel-cli-resultados');
@@ -2977,11 +3004,12 @@ function buscarCliRel(){
       renderTagsSel();
       res.style.display='none';
       var inp=document.getElementById('rel-cli-busca'); if(inp) inp.value='';
-      gerarRelatorio();
+      renderRelatorioItens();
     });
     res.appendChild(item);
   });
 }
+
 
 function renderTagsSel(){
   var div=document.getElementById('rel-cli-selecionados'); if(!div) return;
@@ -2994,181 +3022,90 @@ function renderTagsSel(){
     tag.innerHTML=cl.nome.split(' ')[0]+' <span style="cursor:pointer;font-weight:900" data-rm="'+id+'">&times;</span>';
     tag.querySelector('[data-rm]').addEventListener('click',function(){
       _relClisSel=_relClisSel.filter(function(x){return x!==id;});
-      renderTagsSel(); gerarRelatorio();
+      renderTagsSel();
+      renderRelatorioItens();
     });
     div.appendChild(tag);
   });
 }
 
-function limparSelCliRel(){
-  _relClisSel=[];
-  renderTagsSel();
-  var inp=document.getElementById('rel-cli-busca'); if(inp) inp.value='';
-  gerarRelatorio();
-}
+function renderRelatorioItens(){
+  var wrap = document.getElementById('rel-itens-wrap'); if(!wrap) return;
 
-function selecionarTodosRel(){
-  _relClisSel=_cls.map(function(c){return c.id;});
-  renderTagsSel(); gerarRelatorio();
-}
+  if(!_relClisSel.length){
+    wrap.innerHTML = '<div class="vazio"><div class="vazio-tx">Busque e selecione os clientes acima para montar o relatorio</div></div>';
+    return;
+  }
 
-function gerarRelatorio(){
-  var periodo=(document.getElementById('rel-periodo')||{value:'geral'}).value;
-  var tipoFilt=(document.getElementById('rel-tipo')||{value:''}).value;
-  var dh=new Date(); dh.setHours(0,0,0,0);
-  // Semana: segunda a domingo
-  var inicioSemana=new Date(dh);
-  var diaSemana = dh.getDay(); // 0=dom,1=seg,...,6=sab
-  var diasAteSeg = diaSemana===0 ? 6 : diaSemana-1; // quantos dias voltar ate segunda
-  inicioSemana.setDate(dh.getDate()-diasAteSeg);
-  var inicioMes=new Date(dh.getFullYear(),dh.getMonth(),1);
-  var inicioSemPassada=new Date(inicioSemana); inicioSemPassada.setDate(inicioSemPassada.getDate()-7);
-  var fimSemPassada=new Date(inicioSemana); fimSemPassada.setDate(fimSemPassada.getDate()-1);
-
-  // Aviso sexta
   var av=document.getElementById('rel-aviso-sexta');
-  if(av) av.style.display=dh.getDay()===5?'block':'none';
+  if(av) av.style.display = new Date().getDay()===5 ? 'block' : 'none';
 
-  // Filtrar clientes — se nenhum selecionado, mostra todos
-  var clsFilt=_cls.filter(function(cl){
-    if(tipoFilt && cl.tipo!==tipoFilt) return false;
-    if(_relClisSel.length>0 && _relClisSel.indexOf(cl.id)<0) return false;
-    return true;
-  });
-  // Ordenar por nome
-  clsFilt.sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||''); });
+  var hoje2 = new Date().toLocaleDateString('pt-BR');
 
-  // Filtrar serviços
-  var servsFilt=_servs.filter(function(s){
-    var cl=clsFilt.find(function(c){return c.id===s.cliId;});
-    if(!cl) return false;
-    if(periodo==='semana'){
-      var d=new Date(s.criado||''); d.setHours(0,0,0,0);
-      return d>=inicioSemana;
-    }
-    if(periodo==='semana_passada'){
-      var d2=new Date(s.criado||''); d2.setHours(0,0,0,0);
-      return d2>=inicioSemPassada && d2<=fimSemPassada;
-    }
-    if(periodo==='mes'){
-      var d3=new Date(s.criado||''); d3.setHours(0,0,0,0);
-      return d3>=inicioMes;
-    }
-    return true;
-  });
-
-  var div=document.getElementById('rel-conteudo'); if(!div) return;
-  var periodoTxt={semana:'Esta Semana',semana_passada:'Semana Passada',mes:'Este Mes',geral:'Geral'};
-  var hoje2=new Date().toLocaleDateString('pt-BR');
-
-  var h='<div id="rel-imprimivel">';
-  h+='<div style="text-align:center;padding:16px 0;border-bottom:2px solid var(--border);margin-bottom:20px">'
-    +'<div style="font-size:20px;font-weight:900">CH Cursos e Consultorias</div>'
-    +'<div style="font-size:14px;color:var(--dim);margin-top:4px">Relatorio '+periodoTxt[periodo]+(tipoFilt?' — '+tipoFilt:'')+'</div>'
-    +'<div style="font-size:12px;color:var(--muted);margin-top:2px">Gerado em '+hoje2+' &middot; '+(clsFilt.length)+' cliente(s) &middot; '+(servsFilt.length)+' servico(s)</div>'
+  var h = '<div id="rel-imprimivel">';
+  h += '<div style="text-align:center;padding:16px 0;border-bottom:2px solid var(--border);margin-bottom:20px">'
+    +'<div style="font-size:20px;font-weight:900">CH Cursos e Consultorias / CTR</div>'
+    +'<div style="font-size:13px;color:var(--dim);margin-top:4px">Relatorio gerado em '+hoje2+'</div>'
     +'</div>';
 
-  // Cards resumo
-  var total=servsFilt.length;
-  var deferidos=servsFilt.filter(function(s){return s.status==='deferido';}).length;
-  var andamento=servsFilt.filter(function(s){return s.status!=='deferido'&&s.status!=='indeferido';}).length;
-  var indeferidos=servsFilt.filter(function(s){return s.status==='indeferido';}).length;
-  h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">';
-  h+=statBoxRel(total,'Total','var(--blue)');
-  h+=statBoxRel(andamento,'Em Andamento','#b45309');
-  h+=statBoxRel(deferidos,'Deferidos','var(--green)');
-  h+=statBoxRel(indeferidos,'Indeferidos','var(--red)');
-  h+='</div>';
+  _relClisSel.forEach(function(cliId){
+    var cl = _cls.find(function(c){ return c.id===cliId; });
+    if(!cl) return;
+    var servsCli = _servs.filter(function(s){ return s.cliId===cliId; })
+      .sort(function(a,b){ return (b.criado||'').localeCompare(a.criado||''); });
+    var corTipo = cl.tipo==='CTR' ? 'var(--green)' : 'var(--blue)';
 
-  // TABELA POR CLIENTE
-  h+='<div style="margin-bottom:24px">';
-  h+='<div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--blue2)">Detalhamento por Cliente</div>';
-
-  clsFilt.forEach(function(cl){
-    var servsCli=servsFilt.filter(function(s){return s.cliId===cl.id;});
-    if(!servsCli.length) return;
-    var ativo=clienteAtivo(cl.id);
-    var corTipo=cl.tipo==='CTR'?'var(--green)':'var(--blue)';
-
-    h+='<div style="margin-bottom:18px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden">';
-    // Header do cliente
-    h+='<div style="background:'+corTipo+';color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">'
-      +'<div>'
-      +'<div style="font-size:14px;font-weight:800">'+cl.nome+'</div>'
-      +'<div style="font-size:11px;opacity:.85;margin-top:2px">'+(cl.clienteId||cl.tipo)+(cl.cpf?' &middot; '+cl.cpf:'')+(cl.telefone?' &middot; '+cl.telefone:'')+'</div>'
-      +'</div>'
-      +'<span style="font-size:11px;padding:2px 9px;border-radius:99px;background:rgba(255,255,255,.2);font-weight:700">'+(ativo?'Ativo':'Inativo')+'</span>'
+    h += '<div style="margin-bottom:18px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden">';
+    h += '<div style="background:'+corTipo+';color:#fff;padding:10px 14px">'
+      +'<div style="font-size:15px;font-weight:800">'+cl.nome+'</div>'
+      +'<div style="font-size:11px;opacity:.85;margin-top:2px">'+(cl.clienteId||cl.tipo)+(cl.telefone?' &middot; '+cl.telefone:'')+'</div>'
       +'</div>';
 
-    // Serviços do cliente
-    servsCli.forEach(function(s,idx){
-      var st=getStatus(s.status);
-      var diasV=diasDesde(s.ultimoVisto||s.inicio);
-      var bgRow=idx%2===0?'#fff':'#f9f9fb';
-      h+='<div style="padding:10px 14px;background:'+bgRow+';border-top:1px solid var(--border)">'
-        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
-        +'<div style="flex:1">'
-        +(s.protocolo?'<div style="font-size:11px;color:var(--blue);font-weight:800;margin-bottom:3px">'+s.protocolo+'</div>':'')
-        +'<div style="font-size:14px;font-weight:700">'+s.nomeServico+'</div>'
-        +'<div style="font-size:12px;color:var(--dim);margin-top:4px;display:flex;flex-wrap:wrap;gap:12px">'
-        +'<span>&#128197; Inicio: '+fmtData(s.inicio)+'</span>'
-        +(s.prazo?'<span>&#9201; Prazo: '+fmtData(s.prazo)+'</span>':'')
-        +(s.ultimoVisto?'<span style="'+(diasV>=14?'color:var(--red);font-weight:700':diasV>=12?'color:#b45309;font-weight:700':'')+'">&#128065; Visto: '+fmtData(s.ultimoVisto)+' ('+diasV+'d)</span>':'')
-        +(s.dataProtocolo?'<span>Protocolado: '+fmtData(s.dataProtocolo)+'</span>':'')
-        +'</div>'
-        +(s.obs?'<div style="font-size:12px;color:var(--dim);font-style:italic;margin-top:5px;padding:5px 8px;background:#f5f5f5;border-radius:4px">Obs: '+s.obs+'</div>':'')
-        +'</div>'
-        +'<span style="padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;background:'+st.bg+';color:'+st.cor+';border:1px solid '+st.cor+'33;flex-shrink:0">'+st.l+'</span>'
-        +'</div>'
-        +'</div>';
-    });
-    h+='</div>';
-  });
-  h+='</div>';
-
-  // Tabela por status
-  STATUS_SERV.forEach(function(st){
-    var lista=servsFilt.filter(function(s){return s.status===st.v;});
-    if(!lista.length) return;
-    h+='<div style="margin-bottom:20px">';
-    h+='<div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:'+st.cor+';margin-bottom:8px;padding:6px 10px;background:'+st.bg+';border-radius:var(--r2);border-left:4px solid '+st.cor+'">'+st.l+' ('+lista.length+')</div>';
-    h+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
-    h+='<thead><tr style="background:var(--bg)">'
-      +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Protocolo</th>'
-      +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Cliente</th>'
-      +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Servico</th>'
-      +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Inicio</th>'
-      +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Prazo</th>'
-      +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Ult. Visto</th>'
-      +'<th style="padding:7px 10px;text-align:left;border:1px solid var(--border)">Observacao</th>'
-      +'</tr></thead><tbody>';
-    lista.forEach(function(s){
-      var cl=clsFilt.find(function(c){return c.id===s.cliId;})||{nome:'?'};
-      var dias=diasDesde(s.ultimoVisto||s.inicio);
-      var corD=dias>=14?'color:var(--red);font-weight:700':dias>=12?'color:#b45309;font-weight:700':'';
-      h+='<tr>'
-        +'<td style="padding:7px 10px;border:1px solid var(--border);font-weight:700;color:var(--blue)">'+(s.protocolo||'—')+'</td>'
-        +'<td style="padding:7px 10px;border:1px solid var(--border);font-weight:600">'+cl.nome+'</td>'
-        +'<td style="padding:7px 10px;border:1px solid var(--border)">'+s.nomeServico+'</td>'
-        +'<td style="padding:7px 10px;border:1px solid var(--border)">'+fmtData(s.inicio)+'</td>'
-        +'<td style="padding:7px 10px;border:1px solid var(--border)">'+(s.prazo?fmtData(s.prazo):'—')+'</td>'
-        +'<td style="padding:7px 10px;border:1px solid var(--border);'+corD+'">'+(s.ultimoVisto?fmtData(s.ultimoVisto)+' ('+dias+'d)':'—')+'</td>'
-        +'<td style="padding:7px 10px;border:1px solid var(--border);font-style:italic;color:var(--dim)">'+(s.obs||'—')+'</td>'
-        +'</tr>';
-    });
-    h+='</tbody></table></div>';
+    if(!servsCli.length){
+      h += '<div style="padding:14px;font-size:13px;color:var(--muted)">Nenhum servico cadastrado para este cliente</div>';
+    } else {
+      servsCli.forEach(function(s, idx){
+        var st = getStatus(s.status);
+        var obsAtual = (_relObsTemp[s.id]!==undefined) ? _relObsTemp[s.id] : (s.obs||'');
+        var bgRow = idx%2===0 ? '#fff' : '#f9f9fb';
+        h += '<div style="padding:12px 14px;background:'+bgRow+';border-top:1px solid var(--border)">';
+        h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">'
+          +'<div>'
+          +(s.protocolo?'<div style="font-size:11px;color:var(--blue);font-weight:800">'+s.protocolo+'</div>':'')
+          +'<div style="font-size:14px;font-weight:700">'+s.nomeServico+'</div>'
+          +'</div>'
+          +'<span style="padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;background:'+st.bg+';color:'+st.cor+';border:1px solid '+st.cor+'33;flex-shrink:0">'+st.l+'</span>'
+          +'</div>';
+        h += '<textarea class="inp inp-ta rel-obs-edit no-print" data-sv-id="'+s.id+'" placeholder="Observacao para este servico (analise, pendencia, etc)..." style="min-height:50px;font-size:13px">'+obsAtual+'</textarea>';
+        h += '<div class="print-only" style="display:none;font-size:13px;color:var(--dim);font-style:italic;padding:6px 0">'+(obsAtual?('Obs: '+obsAtual):'')+'</div>';
+        h += '</div>';
+      });
+    }
+    h += '</div>';
   });
 
-  // Rodapé
-  h+='<div style="text-align:center;font-size:11px;color:var(--muted);padding:14px 0;border-top:1px solid var(--border);margin-top:8px">CH Cursos e Consultorias &mdash; Cruz das Almas/BA</div>';
-  h+='</div>';
-  div.innerHTML=h;
+  h += '<div style="text-align:center;font-size:11px;color:var(--muted);padding:14px 0;border-top:1px solid var(--border);margin-top:8px">CH Cursos e Consultorias &mdash; Cruz das Almas/BA</div>';
+  h += '</div>';
+
+  wrap.innerHTML = h;
+
+  // Capturar edicoes de observacao em tempo real
+  wrap.querySelectorAll('.rel-obs-edit').forEach(function(ta){
+    ta.addEventListener('input', function(){
+      var svId = ta.getAttribute('data-sv-id');
+      _relObsTemp[svId] = ta.value;
+      var printDiv = ta.nextElementSibling;
+      if(printDiv) printDiv.textContent = ta.value ? ('Obs: '+ta.value) : '';
+    });
+  });
 }
-
 
 function imprimirRelatorio(){
+  if(!_relClisSel.length){ toast('Selecione ao menos um cliente','err'); return; }
+  if(new Date().getDay()===5) localStorage.setItem('gch_ult_sexta', isoHoje());
   window.print();
 }
+
 
 // Aviso sexta-feira ao abrir o sistema
 function verificarSexta(){
@@ -3182,8 +3119,6 @@ function verificarSexta(){
   }
 }
 
-// Marcar sexta ao gerar
-var _relOriginal=gerarRelatorio;
 
 // =========== PASTA GOOGLE DRIVE ===========
 
