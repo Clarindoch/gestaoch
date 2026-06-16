@@ -436,11 +436,7 @@ select.inp option{background:#fff}
       Copie este codigo, cole no <b>Apps Script</b> da planilha e publique como <b>App da Web</b>.
     </p>
         <textarea class="inp inp-ta" id="gas-code" readonly
-      style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5">id="gas-code" readonly
-      style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5"&gt;id="gas-code" readonly
-      style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5"&gt;id="gas-code" readonly
-      style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5"&gt;id="gas-code" readonly
-      style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5"&gt;// ========================================
+      style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5">// ========================================
 // GESTAO CH Premium — Google Apps Script
 // Versao com Cadastro + Documentos
 // Cole em Extensions &gt; Apps Script
@@ -1828,8 +1824,7 @@ function verCliente(id){
     });
     det.querySelectorAll('[data-alt-sv]').forEach(function(b){
       b.addEventListener('click',function(){
-        alterarStatus(b.getAttribute('data-alt-sv'));
-        setTimeout(function(){ verCliente(id); },300);
+        abrirEditarSv(b.getAttribute('data-alt-sv'));
       });
     });
     det.querySelectorAll('[data-fin-sv]').forEach(function(b){
@@ -2261,14 +2256,14 @@ function renderServicos(){
       +'<span style="padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;background:'+stBg+';color:'+stCor+';border:1px solid '+stCor+'33">'+stTxt+'</span>'
       +'</div>'
       +'<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">'
-      +'<button class="btn b-gold b-xs" data-alt="'+s.id+'">&#9998; Status</button>'
+      +'<button class="btn b-gold b-xs" data-alt="'+s.id+'">&#9998; Editar / Checklist</button>'
       +(s.status==='protocolado'?'<button class="btn b-blue b-xs" data-visto="'+s.id+'">&#128065; Visto</button>':'')
       +(s.status==='protocolado'?'<button class="btn b-green b-xs" data-gru="'+s.id+'">&#9745; GRU</button>':'')
       +'<button class="btn b-red b-xs" data-del-sv="'+s.id+'">&#128465;</button>'
       +'</div>';
     el.addEventListener('click',function(e){
       var btn=e.target.closest('[data-alt]');
-      if(btn){ alterarStatus(btn.getAttribute('data-alt')); return; }
+      if(btn){ abrirEditarSv(btn.getAttribute('data-alt')); return; }
       var bd=e.target.closest('[data-del-sv]');
       if(bd){ excluirServico(bd.getAttribute('data-del-sv')); return; }
       var bv=e.target.closest('[data-visto]');
@@ -3523,6 +3518,13 @@ function onEsvTipo(){
   var v=(document.getElementById('esv-tipo')||{value:''}).value;
   var w=document.getElementById('esv-transf-wrap');
   if(w) w.style.display=v==='TRANSF'?'grid':'none';
+
+  // Re-renderizar checklist quando o tipo muda
+  var svId=(document.getElementById('esv-id')||{value:''}).value;
+  if(svId){
+    var s=_servs.find(function(x){ return x.id===svId; });
+    if(s){ s.tipo=v; renderChecklistServico(s); }
+  }
 }
 
 function salvarEdicaoSv(){
