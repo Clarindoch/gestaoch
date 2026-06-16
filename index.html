@@ -311,11 +311,6 @@ select.inp option{background:#fff}
         <input class="inp" id="f-mae" placeholder="Ex: MARIA SILVA SANTOS" oninput="U(this)"></div>
       <div class="field"><label>Numero do Titulo</label>
         <input class="inp" id="f-titulo" placeholder="Ex: 0000 0000 0000"></div>
-      <div class="field"><label>Tipo</label>
-        <select class="inp" id="f-tipo">
-          <option value="CH">CH - Cursos e Consultorias</option>
-          <option value="CTR">CTR - Clube de Tiro</option>
-        </select></div>
     </div>
   </div>
   <div class="card">
@@ -403,7 +398,7 @@ select.inp option{background:#fff}
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
     <button class="btn b-out b-sm" onclick="ir('lista')">&#8592; Voltar</button>
     <button class="btn b-blue b-sm" onclick="editarAtual()">&#9998; Editar</button>
-    <button class="btn b-green b-sm" onclick="irServicosCliente()">&#128193; + Servico</button>
+    <button class="btn b-green b-sm" onclick="abrirNovoServicoCliente(_editId)">&#128193; + Servico</button>
     <button class="btn b-gold b-sm" onclick="irDocumentosCliente()">&#128196; Documentos</button>
     <button class="btn b-out b-sm" onclick="gerarFicha()">&#128203; Gerar Ficha</button>
     <button class="btn b-red b-sm" onclick="excluirAtual()" style="margin-left:auto">&#128465; Excluir</button>
@@ -1359,9 +1354,18 @@ function salvar(){
   enviarGAS(dadosParaMaiusculo(d), isNovo?'INSERT':'UPDATE');
 
 
-  toast((isNovo?'Cadastrado':'Atualizado')+': '+d.nome.split(' ')[0],'ok');
+  if(isNovo){
+    toast('Cadastrado: '+d.clienteId+' — '+d.nome.split(' ')[0],'ok');
+    registrarAuditoria('CADASTRO', d.clienteId+' - '+d.nome);
+  } else {
+    toast('Atualizado: '+d.nome.split(' ')[0],'ok');
+    registrarAuditoria('EDICAO', d.clienteId+' - '+d.nome);
+  }
   limparForm();
   ir('lista');
+  if(isNovo){
+    setTimeout(function(){ verCliente(d.id); }, 600);
+  }
 }
 
 // =========== EDITAR / EXCLUIR ===========
@@ -1407,6 +1411,7 @@ function confirmarDel(){
 
   fecharModal('modal-del'); ir('lista');
   toast('Cliente e servicos removidos (planilha e sistema)','ok');
+  registrarAuditoria('EXCLUSAO_CLIENTE', _delId);
 }
 
 function delRapido(id){
@@ -1771,14 +1776,14 @@ function verCliente(id){
   h += '<div class="card" style="margin-top:14px">';
   h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
   h += '<div class="sec" style="margin:0;border:0;padding:0">&#128193; Servicos Ativos ('+servsAtivos.length+')</div>';
-  h += '<button class="btn b-green b-xs" onclick="irServicosCliente()">&#43; Novo</button>';
+  h += '<button class="btn b-green b-xs" onclick="abrirNovoServicoCliente(\''+id+'\')">&#43; Novo</button>';
   h += '</div>';
 
   if(!servsAtivos.length && !servsFin.length){
     h += '<div style="text-align:center;padding:20px;color:var(--muted)">'
       +'<div style="font-size:28px;margin-bottom:8px">&#128193;</div>'
       +'<div style="font-weight:700">Nenhum servico cadastrado</div>'
-      +'<button class="btn b-green b-sm" style="margin-top:10px" onclick="irServicosCliente()">&#43; Adicionar Servico</button>'
+      +'<button class="btn b-green b-sm" style="margin-top:10px" onclick="abrirNovoServicoCliente(\''+id+'\')">&#43; Adicionar Servico</button>'
       +'</div>';
   }
 
@@ -3475,6 +3480,34 @@ function dadosParaMaiusculo(obj){
   return novo;
 }
 // =========== MODAL EDITAR SERVIÇO ===========
+function abrirNovoServicoCliente(cliId){
+  var cl=_cls.find(function(c){ return c.id===cliId; }); if(!cl) return;
+  var m=document.getElementById('modal-editar-sv'); if(!m) return;
+
+  document.getElementById('esv-id').value      = ''; // vazio = modo CRIAR
+  document.getElementById('esv-cli-id').value  = cliId;
+  document.getElementById('esv-titulo').textContent = 'Novo Servico';
+  document.getElementById('esv-cli-nome-box').textContent = cl.nome;
+
+  var tipo=document.getElementById('esv-tipo'); if(tipo) tipo.value='CR';
+  var det=document.getElementById('esv-detalhe'); if(det) det.value='';
+  var st=document.getElementById('esv-status'); if(st) st.value='aguardando_cli';
+  var ini=document.getElementById('esv-inicio'); if(ini) ini.value=isoHoje();
+  var pra=document.getElementById('esv-prazo'); if(pra) pra.value='';
+  var dp=document.getElementById('esv-data-proto'); if(dp) dp.value='';
+  var uv=document.getElementById('esv-ultimo-visto'); if(uv) uv.value='';
+  var gr=document.getElementById('esv-gru'); if(gr) gr.value='';
+  var ob=document.getElementById('esv-obs'); if(ob) ob.value='';
+
+  onEsvTipo();
+  // No modo de criacao o checklist so aparece depois de salvar (precisa de ID valido)
+  var cw=document.getElementById('esv-checklist-wrap'); if(cw) cw.style.display='none';
+
+  var hw=document.getElementById('esv-historico-wrap'); if(hw) hw.style.display='none';
+
+  m.style.display='flex';
+}
+
 function abrirEditarSv(svId){
   var s=_servs.find(function(x){ return x.id===svId; }); if(!s) return;
   var cl=_cls.find(function(c){ return c.id===s.cliId; });
@@ -3533,38 +3566,70 @@ function onEsvTipo(){
 }
 
 function salvarEdicaoSv(){
-  var svId=(document.getElementById('esv-id')||{value:''}).value; if(!svId) return;
-  var idx=_servs.findIndex(function(x){ return x.id===svId; }); if(idx<0) return;
-  var s=_servs[idx];
-  var tipo=(document.getElementById('esv-tipo')||{value:s.tipo}).value;
-  var det=(document.getElementById('esv-detalhe')||{value:''}).value;
-  var novoStatus=(document.getElementById('esv-status')||{value:s.status}).value;
+  var svId=(document.getElementById('esv-id')||{value:''}).value;
+  var cliId=(document.getElementById('esv-cli-id')||{value:''}).value;
+  var isNovoSv = !svId;
 
-  // Se mudou para protocolado agora, registrar data
-  if(novoStatus==='protocolado' && s.status!=='protocolado'){
-    s.dataProtocolo = (document.getElementById('esv-data-proto')||{value:''}).value || isoHoje();
-    s.ultimoVisto   = isoHoje();
+  var tipo=(document.getElementById('esv-tipo')||{value:'CR'}).value;
+  var det=(document.getElementById('esv-detalhe')||{value:''}).value;
+  var novoStatus=(document.getElementById('esv-status')||{value:'aguardando_cli'}).value;
+
+  if(tipo==='TRANSF' && !det){ toast('Informe os detalhes da transferencia','err'); return; }
+
+  var s;
+  if(isNovoSv){
+    if(!cliId){ toast('Cliente nao identificado','err'); return; }
+    var cl = _cls.find(function(c){ return c.id===cliId; })||{};
+    svId = uid();
+    s = {
+      id: svId,
+      protocolo: proximoProtocolo(cl.tipo||'CH', tipo),
+      cliId: cliId,
+      cliNome: cl.nome||'',
+      cliCodigo: cl.clienteId||cl.tipo||'',
+      tipoCliente: cl.tipo||'',
+      criado: new Date().toISOString(),
+      ultimoVisto: isoHoje(),
+      dataProtocolo: ''
+    };
+  } else {
+    var idx=_servs.findIndex(function(x){ return x.id===svId; }); if(idx<0) return;
+    s=_servs[idx];
+    // Se mudou para protocolado agora, registrar data
+    if(novoStatus==='protocolado' && s.status!=='protocolado'){
+      s.dataProtocolo = (document.getElementById('esv-data-proto')||{value:''}).value || isoHoje();
+      s.ultimoVisto   = isoHoje();
+    }
   }
 
   s.tipo         = tipo;
   s.nomeServico  = NOMES_SERV[tipo]+(det?' - '+det:'');
   s.detalhe      = det;
   s.status       = novoStatus;
-  s.inicio       = (document.getElementById('esv-inicio')||{value:''}).value;
+  s.inicio       = (document.getElementById('esv-inicio')||{value:''}).value || isoHoje();
   s.prazo        = (document.getElementById('esv-prazo')||{value:''}).value;
-  s.dataProtocolo= (document.getElementById('esv-data-proto')||{value:''}).value;
-  s.ultimoVisto  = (document.getElementById('esv-ultimo-visto')||{value:''}).value;
+  s.dataProtocolo= (document.getElementById('esv-data-proto')||{value:''}).value || s.dataProtocolo || '';
+  s.ultimoVisto  = (document.getElementById('esv-ultimo-visto')||{value:''}).value || s.ultimoVisto || isoHoje();
   s.gruComunicada= (document.getElementById('esv-gru')||{value:''}).value;
   s.obs          = (document.getElementById('esv-obs')||{value:''}).value;
   s.atualizado   = isoHoje();
 
-  _servs[idx]=s;
+  if(isNovoSv){
+    _servs.unshift(s);
+    enviarGAS(dadosParaMaiusculo(s), 'INSERT', 'Servicos');
+    toast('Servico criado: '+s.protocolo,'ok');
+  } else {
+    var idx2=_servs.findIndex(function(x){return x.id===svId;});
+    if(idx2>=0) _servs[idx2]=s;
+    enviarGAS(dadosParaMaiusculo(s),'UPDATE','Servicos');
+    toast('Servico atualizado!','ok');
+  }
+
   saveServicos();
-  enviarGAS(dadosParaMaiusculo(s),'UPDATE','Servicos');
   fecharModalSv();
   verCliente(s.cliId);
   renderAlertas();
-  toast('Servico atualizado!','ok');
+  renderServicos();
 }
 
 function excluirServicoModal(){
@@ -4611,8 +4676,37 @@ function verExcluidos(){
   }
 }
 
+
+// =========== LOG DE AUDITORIA (blindagem contra perda de dados) ===========
+var KAUD = 'gch_auditoria';
+var _auditoria = [];
+
+function loadAuditoria(){
+  try{ _auditoria = JSON.parse(localStorage.getItem(KAUD)||'[]'); }catch(e){ _auditoria=[]; }
+}
+
+function registrarAuditoria(acao, detalhe){
+  _auditoria.unshift({
+    data: new Date().toLocaleString('pt-BR'),
+    acao: acao,
+    detalhe: detalhe
+  });
+  if(_auditoria.length>50) _auditoria = _auditoria.slice(0,50);
+  localStorage.setItem(KAUD, JSON.stringify(_auditoria));
+}
+
+function verAuditoria(){
+  if(!_auditoria.length){ toast('Nenhuma acao registrada ainda','ok'); return; }
+  var msg = 'Ultimas acoes (mais recente primeiro):\n\n';
+  _auditoria.slice(0,15).forEach(function(a){
+    msg += a.data+' — '+a.acao+': '+a.detalhe+'\n';
+  });
+  alert(msg);
+}
+
 // =========== INIT ===========
 loadExcluidos();
+loadAuditoria();
 loadAll();
 loadServicos();
 loadDocs();
