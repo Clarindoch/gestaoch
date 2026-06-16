@@ -681,6 +681,8 @@ function jsonErr(msg) {
         <input class="inp" id="doc-cinco-anos" placeholder="ID do Google Docs"></div>
       <div class="field s2"><label>ID — Declara&#231;&#227;o de Resid&#234;ncia</label>
         <input class="inp" id="doc-residencia" placeholder="ID do Google Docs"></div>
+      <div class="field s2"><label>ID — Declara&#231;&#227;o de Inexist&#234;ncia (Inqueritos/Processos)</label>
+        <input class="inp" id="doc-inexistencia" placeholder="ID do Google Docs"></div>
       <div class="field s2">
         <label>Link da Pasta Raiz no Google Drive</label>
         <input class="inp" id="doc-pasta-raiz" placeholder="Cole o link da pasta: https://drive.google.com/drive/folders/..." oninput="extrairIdPasta(this)">
@@ -878,6 +880,13 @@ function jsonErr(msg) {
         <div class="doc-check-label">
           <div style="font-weight:800">&#128196; Declara&#231;&#227;o de Resid&#234;ncia</div>
           <div style="font-size:11px;color:var(--dim);margin-top:2px">Gera e salva na pasta do cliente</div>
+        </div>
+      </label>
+      <label class="doc-check-item" onclick="onDocCheck()">
+        <input type="checkbox" value="inexistencia" class="doc-chk">
+        <div class="doc-check-label">
+          <div style="font-weight:800">&#128196; Declara&#231;&#227;o de Inexist&#234;ncia</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px">Inqueritos policiais e processos criminais &middot; salva na pasta do cliente</div>
         </div>
       </label>
     </div>
@@ -2330,7 +2339,8 @@ var NOMES_DOCS = {
   'seg-acervo':    'Declaracao de Seguranca de Acervo',
   'guarda-acervo': 'Declaracao de Guarda de Acervo',
   'cinco-anos':    'Declaracao de 5 Anos',
-  'residencia':    'Declaracao de Residencia'
+  'residencia':    'Declaracao de Residencia',
+  'inexistencia':  'Declaracao de Inexistencia de Inqueritos e Processos Criminais'
 };
 
 var CFG_DOCS_KEY = 'gch_cfg_docs';
@@ -2342,7 +2352,7 @@ function loadDocs(){
 }
 
 function salvarDocs(){
-  var ids = ['doc-seg-acervo','doc-guarda-acervo','doc-cinco-anos','doc-residencia','doc-pasta-raiz'];
+  var ids = ['doc-seg-acervo','doc-guarda-acervo','doc-cinco-anos','doc-residencia','doc-inexistencia','doc-pasta-raiz'];
   var cfg = _cfgDocs || {};
   ids.forEach(function(id){ cfg[id] = (document.getElementById(id)||{value:''}).value.trim(); });
   // Extrair ID da pasta do link
@@ -2360,7 +2370,7 @@ function salvarDocs(){
 function renderConfigDocs(){
   preencherSelectPastaCliente();
   if(!_cfgDocs) return;
-  var ids = ['doc-seg-acervo','doc-guarda-acervo','doc-cinco-anos','doc-residencia','doc-pasta-raiz'];
+  var ids = ['doc-seg-acervo','doc-guarda-acervo','doc-cinco-anos','doc-residencia','doc-inexistencia','doc-pasta-raiz'];
   ids.forEach(function(id){
     var el=document.getElementById(id);
     if(el && _cfgDocs[id]) el.value=_cfgDocs[id];
