@@ -2634,15 +2634,21 @@ function gerarDocumentos(modo){
               window.open(res.data.docUrl,'_blank');
             if((modo==='pdf'||modo==='ambos') && res.data&&res.data.pdfUrl)
               window.open(res.data.pdfUrl,'_blank');
-          } else { erros++; }
+          } else {
+            erros++;
+            console.error('GAS retornou erro para '+tipo+':', res.error||'sem detalhes');
+            toast('Erro no '+tipo+': '+(res.error||'desconhecido'),'err');
+          }
           if(done===selecionados.length){
             localStorage.setItem(KD, JSON.stringify(_docsGerados));
             renderDocsGerados();
             finalizarGeracao(done,erros,progDiv);
           }
         })
-        .catch(function(){
+        .catch(function(err){
           done++; erros++;
+          console.error('Erro ao gerar doc '+tipo+':', err.message||err);
+          toast('Erro: '+(err.message||'falha desconhecida'),'err');
           if(done===selecionados.length){
             localStorage.setItem(KD, JSON.stringify(_docsGerados));
             renderDocsGerados();
