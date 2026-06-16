@@ -189,7 +189,7 @@ select.inp option{background:#fff}
 <!-- ========== NAV ========== -->
 <div id="nav">
   <button class="nb on" id="nb-inicio"   onclick="ir('inicio')">&#127968; Inicio</button>
-  <button class="nb"    id="nb-cadastro" onclick="ir('cadastro')">&#43; Cadastro</button>
+  <button class="nb"    id="nb-cadastro" onclick="irCadastroNovo()">&#43; Cadastro</button>
   <button class="nb"    id="nb-lista"    onclick="ir('lista')">&#128101; Clientes</button>
   <button class="nb"    id="nb-servicos" onclick="ir('servicos')">&#128193; Servicos</button>
   <button class="nb"    id="nb-docs"     onclick="ir('docs')">&#128196; Documentos</button>
@@ -373,7 +373,7 @@ select.inp option{background:#fff}
 <div class="pg" id="pg-lista">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
     <div style="font-size:17px;font-weight:800">&#128101; Clientes</div>
-    <button class="btn b-blue b-sm" onclick="ir('cadastro')">&#43; Novo</button>
+    <button class="btn b-blue b-sm" onclick="irCadastroNovo()">&#43; Novo</button>
   </div>
   <div class="srch-w">
     <span>&#128269;</span>
@@ -1313,6 +1313,22 @@ function salvar(){
   var isNovo = !_editId;
   var id     = _editId || uid();
   var cEx    = _cls.find(function(c){ return c.id===id; }) || {};
+
+  // PROTECAO: se vai atualizar um cliente existente, confirmar com o usuario
+  // para evitar sobrescrever dados por engano (bug critico corrigido)
+  if(!isNovo && cEx.nome){
+    var nomeFormulario = nome.trim().toUpperCase();
+    var nomeExistente = (cEx.nome||'').trim().toUpperCase();
+    if(nomeFormulario !== nomeExistente){
+      var confirmou = confirm(
+        'ATENCAO: Voce esta prestes a SOBRESCREVER o cliente:\n\n'
+        +(cEx.clienteId||'')+' - '+cEx.nome+'\n\n'
+        +'Com os novos dados de:\n'+nome+'\n\n'
+        +'Isso e o que voce quer? Se voce queria CADASTRAR UM CLIENTE NOVO, clique CANCELAR e use o botao "+ Novo".'
+      );
+      if(!confirmou){ toast('Operacao cancelada','warn'); return; }
+    }
+  }
   var tipo   = g('f-tipo') || 'CH';
   var seq    = isNovo ? proximoSeq(tipo) : (cEx.seq || proximoSeq(tipo));
   var cliId  = isNovo ? gerarClienteId(tipo,seq) : (cEx.clienteId || gerarClienteId(tipo,seq));
@@ -1420,6 +1436,14 @@ function ir(pg){
   }
   if(pg==='servicos'){ renderServicos(); }
   window.scrollTo(0,0);
+}
+
+// Resetar _editId sempre que o usuario clica diretamente no menu "+ Cadastro"
+// (e nao atraves de editarAtual(), que seta o _editId corretamente antes de chamar ir)
+function irCadastroNovo(){
+  _editId = null;
+  limparForm();
+  ir('cadastro');
 }
 
 // =========== RENDER INICIO ===========
