@@ -477,6 +477,45 @@ if (acao === 'CRIAR_PASTA') {
   }
 }
 
+// SALVAR CONFIGURACAO (URL, IDs documentos, pasta raiz)
+if (acao === 'SALVAR_CONFIG') {
+  var sheetCfg = ss.getSheetByName('Config') || ss.insertSheet('Config');
+  if (sheetCfg.getLastRow() === 0) {
+    sheetCfg.appendRow(['CHAVE', 'VALOR']);
+    sheetCfg.getRange(1,1,1,2).setFontWeight('bold').setBackground('#1a5fa8').setFontColor('#ffffff');
+  }
+  var chavesConfig = ['doc-seg-acervo','doc-guarda-acervo','doc-cinco-anos','doc-residencia','doc-inexistencia','doc-pasta-raiz','doc-pasta-raiz-id'];
+  var dadosCfg = sheetCfg.getDataRange().getValues();
+  chavesConfig.forEach(function(chave) {
+    var valor = params[chave] || '';
+    var achou = false;
+    for (var i = 1; i &lt; dadosCfg.length; i++) {
+      if (dadosCfg[i][0] === chave) {
+        sheetCfg.getRange(i+1, 2).setValue(valor);
+        achou = true;
+        break;
+      }
+    }
+    if (!achou &amp;&amp; valor) {
+      sheetCfg.appendRow([chave, valor]);
+    }
+  });
+  return jsonOk({salvo: true});
+}
+
+// LER CONFIGURACAO
+if (acao === 'LER_CONFIG') {
+  var sheetCfg2 = ss.getSheetByName('Config');
+  if (!sheetCfg2 || sheetCfg2.getLastRow() &lt; 2) return jsonOk({config: {}});
+  var dadosCfg2 = sheetCfg2.getDataRange().getValues();
+  var config = {};
+  for (var i = 1; i &lt; dadosCfg2.length; i++) {
+    if (dadosCfg2[i][0]) config[dadosCfg2[i][0]] = dadosCfg2[i][1];
+  }
+  return jsonOk({config: config});
+}
+
+
 
   var ss        = SpreadsheetApp.getActiveSpreadsheet();
   var sheetName = params.sheet || 'Clientes';
@@ -1726,7 +1765,12 @@ function renderConfig(){
 function salvarConfig(){
   var url=(document.getElementById('cfg-url')||{value:''}).value.trim();
   _gasUrl=url; localStorage.setItem('gch_gas',url);
-  toast('URL salva!','ok');
+  toast('URL salva! Buscando configuracoes salvas...','ok');
+  // Ao salvar a URL, tenta recuperar config e dados da planilha automaticamente
+  setTimeout(function(){
+    carregarConfigDaPlanilha();
+    importarDaPlanilha();
+  }, 500);
 }
 
 function salvarAcesso(){
@@ -2355,16 +2399,55 @@ function salvarDocs(){
   var ids = ['doc-seg-acervo','doc-guarda-acervo','doc-cinco-anos','doc-residencia','doc-inexistencia','doc-pasta-raiz'];
   var cfg = _cfgDocs || {};
   ids.forEach(function(id){ cfg[id] = (document.getElementById(id)||{value:''}).value.trim(); });
-  // Extrair ID da pasta do link
   if(cfg['doc-pasta-raiz']){
     cfg['doc-pasta-raiz-id'] = extrairIdDaUrl(cfg['doc-pasta-raiz']);
   }
   _cfgDocs = cfg;
   localStorage.setItem(CFG_DOCS_KEY, JSON.stringify(cfg));
-  toast('Configuracoes salvas!','ok');
-  // Atualizar status visual
+
   var pastaEl=document.getElementById('doc-pasta-raiz');
   if(pastaEl) extrairIdPasta(pastaEl);
+
+  // Salvar tambem na planilha como backup
+  if(_gasUrl){
+    var qs='acao=SALVAR_CONFIG&'+Object.keys(cfg).map(function(k){
+      return encodeURIComponent(k)+'='+encodeURIComponent(cfg[k]||'');
+    }).join('&');
+    fetch(_gasUrl+'?'+qs)
+      .then(function(r){return r.json();})
+      .then(function(res){
+        if(res.ok) toast('Configuracoes salvas no navegador e na planilha!','ok');
+        else toast('Salvo no navegador (erro ao salvar na planilha)','warn');
+      })
+      .catch(function(){ toast('Salvo no navegador (sem internet p/ planilha)','warn'); });
+  } else {
+    toast('Configuracoes salvas no navegador!','ok');
+  }
+}
+
+function carregarConfigDaPlanilha(){
+  if(!_gasUrl) return;
+  fetch(_gasUrl+'?acao=LER_CONFIG')
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+      if(!res.ok || !res.data || !res.data.config) return;
+      var remoto = res.data.config;
+      if(!Object.keys(remoto).length) return;
+      // Mesclar: só preenche o que estiver vazio localmente
+      var mudou=false;
+      Object.keys(remoto).forEach(function(k){
+        if(remoto[k] && !_cfgDocs[k]){
+          _cfgDocs[k] = remoto[k];
+          mudou=true;
+        }
+      });
+      if(mudou){
+        localStorage.setItem(CFG_DOCS_KEY, JSON.stringify(_cfgDocs));
+        renderConfigDocs();
+        toast('Configuracoes recuperadas da planilha!','ok');
+      }
+    })
+    .catch(function(){});
 }
 
 function renderConfigDocs(){
@@ -3981,6 +4064,7 @@ atualizarStats();
 carregarAnotacao();
 // Importar da planilha após 2 segundos (deixa o sistema carregar primeiro)
 setTimeout(importarDaPlanilha, 2000);
+setTimeout(carregarConfigDaPlanilha, 1500);
 setTimeout(backupDiario,3000);
 setTimeout(enviarFilaSync,2000);
 setTimeout(verificarSexta,1500);
