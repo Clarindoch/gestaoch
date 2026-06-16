@@ -4496,7 +4496,7 @@ function renderChecklistServico(s){
     inputFile.accept='.pdf,.jpg,.jpeg,.png';
     inputFile.addEventListener('change', function(){
       if(inputFile.files && inputFile.files[0]){
-        uploadArquivoChecklist(s, item, inputFile.files[0], row);
+        uploadArquivoChecklist(s, item, inputFile.files[0], row, i);
       }
     });
     btnUp.appendChild(inputFile);
@@ -4515,7 +4515,7 @@ function salvarChecklistServico(s){
   enviarGAS(dadosParaMaiusculo(s),'UPSERT','Servicos');
 }
 
-function uploadArquivoChecklist(s, itemNome, file, rowEl){
+function uploadArquivoChecklist(s, itemNome, file, rowEl, indice){
   var cl = _cls.find(function(c){ return c.id===s.cliId; });
   if(!cl){ toast('Cliente nao encontrado','err'); return; }
   if(!_gasUrl){ toast('Configure a URL do GAS primeiro','err'); return; }
@@ -4539,7 +4539,8 @@ function uploadArquivoChecklist(s, itemNome, file, rowEl){
     else if(cl.tipo==='CH') pastaRaizFallback = _cfgDocs['doc-pasta-raiz-ch-id']||extrairIdDaUrl(_cfgDocs['doc-pasta-raiz-ch']||'');
     if(!pastaRaizFallback) pastaRaizFallback = _cfgDocs['doc-pasta-raiz-id']||extrairIdDaUrl(_cfgDocs['doc-pasta-raiz']||'');
 
-    var nomeArquivo = itemNome.substring(0,60) + ' - ' + (cl.nome||'').toUpperCase();
+    var numOrdem = String((indice!==undefined?indice:0)+1).padStart(2,'0');
+    var nomeArquivo = numOrdem + ' - ' + itemNome.substring(0,80);
     var ext = file.name.split('.').pop();
 
     var params = {
