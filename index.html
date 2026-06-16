@@ -439,6 +439,7 @@ select.inp option{background:#fff}
       style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5">id="gas-code" readonly
       style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5"&gt;id="gas-code" readonly
       style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5"&gt;id="gas-code" readonly
+      style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5"&gt;id="gas-code" readonly
       style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5"&gt;// ========================================
 // GESTAO CH Premium — Google Apps Script
 // Versao com Cadastro + Documentos
@@ -456,6 +457,7 @@ function doPost(e) {
 
   // Redirecionar para gerarDoc se necessario
   if (acao === 'GERAR_DOC') { return gerarDoc(params); }
+  if (acao === 'UPLOAD_ARQUIVO') { return uploadArquivo(params); }
   
 // CRIAR PASTA DO CLIENTE
 if (acao === 'CRIAR_PASTA') {
@@ -685,6 +687,62 @@ function gerarDoc(params) {
     return jsonOk(resultado);
 
   } catch(err) {
+    return jsonErr(err.toString());
+  }
+}
+
+function uploadArquivo(params) {
+  var pastaClienteId = params.pastaClienteId || '';
+  var pastaRaiz       = params.pastaRaiz       || '';
+  var nomePasta        = params.nomePasta        || 'CLIENTE';
+  var nomeArquivo      = params.nomeArquivo      || 'Documento';
+  var extensao         = params.extensao         || '';
+  var mimeType         = params.mimeType         || 'application/octet-stream';
+  var base64           = params.base64           || '';
+
+  if (!base64) return jsonErr('Nenhum arquivo recebido');
+
+  try {
+    var pasta = null;
+
+    if (pastaClienteId) {
+      try {
+        pasta = DriveApp.getFolderById(pastaClienteId);
+        pasta.getName();
+      } catch (eIdInvalido2) {
+        pasta = null;
+      }
+    }
+
+    if (!pasta) {
+      if (pastaRaiz) {
+        var raiz2;
+        try {
+          raiz2 = DriveApp.getFolderById(pastaRaiz);
+        } catch (eRaizInvalida2) {
+          return jsonErr('Pasta raiz invalida para upload. Verifique o link no Config.');
+        }
+        var pastas2 = raiz2.getFoldersByName(nomePasta);
+        pasta = pastas2.hasNext() ? pastas2.next() : raiz2.createFolder(nomePasta);
+      } else {
+        var todas2 = DriveApp.getFoldersByName(nomePasta);
+        pasta = todas2.hasNext() ? todas2.next() : DriveApp.createFolder(nomePasta);
+      }
+    }
+
+    var bytes = Utilities.base64Decode(base64);
+    var nomeFinal = nomeArquivo + (extensao ? '.' + extensao : '');
+    var blob = Utilities.newBlob(bytes, mimeType, nomeFinal);
+    var arquivo = pasta.createFile(blob);
+
+    return jsonOk({
+      arquivoUrl: arquivo.getUrl(),
+      arquivoId: arquivo.getId(),
+      pastaUsadaId: pasta.getId(),
+      pastaUsadaUrl: 'https://drive.google.com/drive/folders/' + pasta.getId()
+    });
+
+  } catch (err) {
     return jsonErr(err.toString());
   }
 }
@@ -2438,6 +2496,14 @@ var NOMES_DOCS = {
   'inexistencia':  'Declaracao de Inexistencia de Inqueritos e Processos Criminais'
 };
 
+var SIGLAS_DOCS = {
+  'seg-acervo':    'DSA',
+  'guarda-acervo': 'DGA',
+  'cinco-anos':    'DECLARACAO DE 5 ANOS',
+  'residencia':    'DECLARACAO DE RESIDENCIA',
+  'inexistencia':  'INEXISTENCIA'
+};
+
 var CFG_DOCS_KEY = 'gch_cfg_docs';
 var _cfgDocs = {};
 
@@ -2658,7 +2724,7 @@ function gerarDocumentos(modo){
       pastaRaiz: pastaRaizId,
       nomePasta: nomePasta(cl),
       pastaClienteId: cl.pastaId || '',
-      nomeDoc:NOMES_DOCS[tipo]+' - '+cl.nome.split(' ')[0].toUpperCase(),
+      nomeDoc:(SIGLAS_DOCS[tipo]||NOMES_DOCS[tipo])+' - '+(cl.nome||'').toUpperCase(),
       modo:modo,
       NOME:cl.nome||'', CPF:cl.cpf||'', RG:cl.rg||'', ORGAO:cl.orgao||'',
       NASCIMENTO:cl.nascimento||'', NATURALIDADE:cl.naturalidade||'',
@@ -2682,12 +2748,15 @@ function gerarDocumentos(modo){
           done++;
           if(progDiv) progDiv.textContent='Gerando '+done+'/'+selecionados.length+'...';
           if(res.ok){
+            var agora = new Date();
+            var horaFmt = String(agora.getHours()).padStart(2,'0')+':'+String(agora.getMinutes()).padStart(2,'0');
             _docsGerados.unshift({
               id:uid(), cliId:cliId, cliNome:cl.nome,
               tipo:tipo, nomeDoc:NOMES_DOCS[tipo],
               docUrl:res.data&&res.data.docUrl?res.data.docUrl:'',
               pdfUrl:res.data&&res.data.pdfUrl?res.data.pdfUrl:'',
-              gerado:hoje()
+              gerado:hoje(),
+              geradoEm: hoje()+' '+horaFmt
             });
             // Se o cliente ainda nao tinha pasta vinculada, salvar agora
             if(res.data && res.data.pastaUsadaId && !cl.pastaId){
@@ -2762,20 +2831,47 @@ function renderDocsGerados(){
     div.innerHTML='<div class="vazio"><div class="vazio-tx">Nenhum documento gerado ainda</div></div>';
     return;
   }
-  div.innerHTML='';
-  _docsGerados.slice(0,20).forEach(function(d){
+
+  // Botao para limpar tudo
+  var topoHtml = '<div style="display:flex;justify-content:flex-end;margin-bottom:8px">'
+    +'<button class="btn b-out b-xs" onclick="limparTodosDocsGerados()">&#128465; Limpar Lista</button>'
+    +'</div>';
+
+  div.innerHTML = topoHtml;
+  _docsGerados.slice(0,30).forEach(function(d){
     var el=document.createElement('div');
     el.style.cssText='padding:10px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px';
-    el.innerHTML='<div>'
+    var dataHora = d.geradoEm || d.gerado || '';
+    el.innerHTML='<div style="min-width:0">'
       +'<div style="font-size:13px;font-weight:700">'+d.nomeDoc+'</div>'
-      +'<div style="font-size:11px;color:var(--dim);margin-top:2px">'+d.cliNome+' &middot; '+d.gerado+'</div>'
+      +'<div style="font-size:11px;color:var(--dim);margin-top:2px">'+d.cliNome+' &middot; '+dataHora+'</div>'
       +'</div>'
-      +'<div style="display:flex;gap:6px;flex-shrink:0">'
+      +'<div style="display:flex;gap:6px;flex-shrink:0;align-items:center">'
       +(d.docUrl?'<a href="'+d.docUrl+'" target="_blank" class="btn b-out b-xs">Docs</a>':'')
       +(d.pdfUrl?'<a href="'+d.pdfUrl+'" target="_blank" class="btn b-blue b-xs">PDF</a>':'')
+      +'<button class="btn b-out b-xs" data-rm-doc="'+d.id+'" style="color:var(--red);border-color:#f5c5c0" title="Excluir da lista">&#128465;</button>'
       +'</div>';
     div.appendChild(el);
   });
+
+  div.querySelectorAll('[data-rm-doc]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var id = btn.getAttribute('data-rm-doc');
+      _docsGerados = _docsGerados.filter(function(d){ return d.id!==id; });
+      localStorage.setItem(KD, JSON.stringify(_docsGerados));
+      renderDocsGerados();
+      toast('Removido da lista','ok');
+    });
+  });
+}
+
+function limparTodosDocsGerados(){
+  if(!_docsGerados.length) return;
+  if(!confirm('Limpar todo o historico de documentos gerados? Isso nao apaga os arquivos do Drive, so a lista aqui.')) return;
+  _docsGerados = [];
+  localStorage.setItem(KD, JSON.stringify(_docsGerados));
+  renderDocsGerados();
+  toast('Lista limpa!','ok');
 }
 
 // =========== BUSCA DE CLIENTE (autocomplete) ===========
@@ -2886,7 +2982,7 @@ function buscarCliRel(){
       renderTagsSel();
       res.style.display='none';
       var inp=document.getElementById('rel-cli-busca'); if(inp) inp.value='';
-      renderRelatorio();
+      gerarRelatorio();
     });
     res.appendChild(item);
   });
@@ -2903,7 +2999,7 @@ function renderTagsSel(){
     tag.innerHTML=cl.nome.split(' ')[0]+' <span style="cursor:pointer;font-weight:900" data-rm="'+id+'">&times;</span>';
     tag.querySelector('[data-rm]').addEventListener('click',function(){
       _relClisSel=_relClisSel.filter(function(x){return x!==id;});
-      renderTagsSel(); renderRelatorio();
+      renderTagsSel(); gerarRelatorio();
     });
     div.appendChild(tag);
   });
@@ -2913,12 +3009,12 @@ function limparSelCliRel(){
   _relClisSel=[];
   renderTagsSel();
   var inp=document.getElementById('rel-cli-busca'); if(inp) inp.value='';
-  renderRelatorio();
+  gerarRelatorio();
 }
 
 function selecionarTodosRel(){
   _relClisSel=_cls.map(function(c){return c.id;});
-  renderTagsSel(); renderRelatorio();
+  renderTagsSel(); gerarRelatorio();
 }
 
 function gerarRelatorio(){
@@ -3399,6 +3495,8 @@ function abrirEditarSv(svId){
   var uv=document.getElementById('esv-ultimo-visto'); if(uv) uv.value=s.ultimoVisto||'';
   var gr=document.getElementById('esv-gru'); if(gr) gr.value=s.gruComunicada||'';
   var ob=document.getElementById('esv-obs'); if(ob) ob.value=s.obs||'';
+
+  renderChecklistServico(s);
 
   // Histórico de vistos
   var hw=document.getElementById('esv-historico-wrap');
@@ -4184,6 +4282,60 @@ function autoPreencherDocsConfig(){
 
 
 // =========== HELPER FETCH GAS (resolve problemas de CORS) ===========
+var _uploadCbCount = 0;
+function gasFetchPost(qs){
+  // Upload via iframe + form POST (contorna CORS, igual ao JSONP, mas suporta corpo grande)
+  return new Promise(function(resolve, reject){
+    var cbName = '_uploadCb' + (_uploadCbCount++);
+    var iframeName = 'uploadFrame'+cbName;
+
+    var timeoutId = setTimeout(function(){
+      cleanup();
+      reject(new Error('Timeout no upload (30s)'));
+    }, 30000);
+
+    function cleanup(){
+      clearTimeout(timeoutId);
+      delete window[cbName];
+      if(iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      if(form && form.parentNode) form.parentNode.removeChild(form);
+    }
+
+    window[cbName] = function(data){
+      cleanup();
+      resolve(data);
+    };
+
+    var iframe = document.createElement('iframe');
+    iframe.name = iframeName;
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = _gasUrl;
+    form.target = iframeName;
+    form.style.display = 'none';
+
+    // Adicionar callback como parametro tambem
+    var fullQs = qs + '&callback=' + cbName;
+    var pairs = fullQs.split('&');
+    pairs.forEach(function(pair){
+      var idx = pair.indexOf('=');
+      var k = decodeURIComponent(pair.substring(0,idx));
+      var v = decodeURIComponent(pair.substring(idx+1));
+      var input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = k;
+      input.value = v;
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+  });
+}
+
 var _gasCbCount = 0;
 function gasFetch(qs){
   // Usa JSONP via tag <script> para contornar restricoes de CORS do Apps Script
@@ -4215,11 +4367,226 @@ function gasFetch(qs){
   });
 }
 
+
+// =========== CHECKLIST DE DOCUMENTOS POR TIPO DE SERVICO ===========
+var LISTAS_DOCS_SERV_DEFAULT = {
+  'CR': [
+    'Capacidade tecnica para manuseio de arma de fogo',
+    'Certidao Justica Federal',
+    'Declaracao de nao responder a inquerito ou processo criminal',
+    'Documento de identificacao pessoal',
+    'Laudo psicologico para manuseio de arma de fogo',
+    'Comprovante de residencia fixa',
+    'Comprovante de ocupacao licita',
+    'Segundo endereco de guarda do acervo',
+    'Certidao Justica Estadual',
+    'Declaracao de seguranca do acervo',
+    'Declaracao de habitualidade conforme norma vigente',
+    'Filiacao a entidade de tiro desportivo',
+    'Certidao Justica Militar',
+    'Certidao Justica Eleitoral'
+  ],
+  'AC': [
+    'Comprovante de Capacidade Tecnica para o manuseio de arma de fogo',
+    'Comprovante de habitualidade na forma da norma vigente',
+    'Declaracao de Seguranca do Acervo',
+    'Certidao de Antecedente Criminal - Justica Federal',
+    'Declaracao de nao estar respondendo a inquerito policial ou a processo criminal',
+    'Documento de Identificacao Pessoal',
+    'Laudo de Aptidao Psicologica para o manuseio de arma de fogo',
+    'Comprovante de Residencia Fixa',
+    'Comprovante de Ocupacao Licita',
+    'Certidao de Antecedente Criminal - Justica Estadual',
+    'Certidao de Antecedente Criminal - Justica Militar',
+    'Certidao de Antecedente Criminal - Justica Eleitoral'
+  ],
+  'RCRAF': [
+    'Comprovante de Capacidade Tecnica para o manuseio de arma de fogo',
+    'Comprovante de habitualidade na forma da norma vigente',
+    'Certidao de Antecedente Criminal - Justica Federal',
+    'Declaracao de nao estar respondendo a inquerito policial ou a processo criminal',
+    'Documento de Identificacao Pessoal',
+    'Laudo de Aptidao Psicologica para o manuseio de arma de fogo',
+    'Comprovante de Residencia Fixa',
+    'Comprovante de Ocupacao Licita',
+    'Comprovante de filiacao a entidade de tiro desportivo',
+    'Certidao de Antecedente Criminal - Justica Estadual',
+    'Certidao de Antecedente Criminal - Justica Militar',
+    'Certidao de Antecedente Criminal - Justica Eleitoral'
+  ]
+};
+// RCR usa a mesma lista do CR
+LISTAS_DOCS_SERV_DEFAULT['RCR'] = LISTAS_DOCS_SERV_DEFAULT['CR'];
+// CRAF usa a mesma lista de AC (autorizacao) por padrao - pode ajustar depois no Config
+LISTAS_DOCS_SERV_DEFAULT['CRAF'] = LISTAS_DOCS_SERV_DEFAULT['AC'];
+
+var KLD = 'gch_listas_docs_serv'; // chave localStorage para listas customizadas
+var _listasDocsServ = {};
+
+function loadListasDocs(){
+  try{
+    var custom = JSON.parse(localStorage.getItem(KLD)||'{}');
+    _listasDocsServ = Object.assign({}, LISTAS_DOCS_SERV_DEFAULT, custom);
+  }catch(e){
+    _listasDocsServ = Object.assign({}, LISTAS_DOCS_SERV_DEFAULT);
+  }
+}
+
+function getListaDocs(tipoServ){
+  return _listasDocsServ[tipoServ] || [];
+}
+
+
+// =========== RENDERIZAR CHECKLIST DE DOCUMENTOS ===========
+function renderChecklistServico(s){
+  var wrap = document.getElementById('esv-checklist-wrap');
+  var div  = document.getElementById('esv-checklist');
+  var prog = document.getElementById('esv-checklist-progresso');
+  if(!wrap || !div) return;
+
+  var lista = getListaDocs(s.tipo);
+  if(!lista.length){
+    wrap.style.display='none';
+    return;
+  }
+  wrap.style.display='block';
+
+  if(!s.checklist) s.checklist = {};
+
+  var total = lista.length;
+  var feitos = lista.filter(function(item){
+    return s.checklist[item] && s.checklist[item].ok;
+  }).length;
+  if(prog) prog.textContent = feitos+' de '+total+' documentos entregues';
+
+  div.innerHTML='';
+  lista.forEach(function(item, i){
+    var info = s.checklist[item] || {};
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;background:'+(info.ok?'var(--green2)':'var(--bg)')+';border-radius:var(--r2);border:1px solid '+(info.ok?'#a7d4bb':'var(--border)');
+
+    var chk = document.createElement('input');
+    chk.type='checkbox';
+    chk.checked = !!info.ok;
+    chk.style.cssText='width:18px;height:18px;flex-shrink:0;cursor:pointer';
+    chk.addEventListener('change', function(){
+      if(!s.checklist[item]) s.checklist[item]={};
+      s.checklist[item].ok = chk.checked;
+      if(chk.checked) s.checklist[item].dataMarcado = isoHoje();
+      salvarChecklistServico(s);
+      renderChecklistServico(s);
+    });
+
+    var txt = document.createElement('div');
+    txt.style.cssText='flex:1;font-size:12.5px;min-width:0';
+    txt.innerHTML = '<div>'+item+'</div>'
+      + (info.arquivoUrl
+          ? '<a href="'+info.arquivoUrl+'" target="_blank" style="font-size:11px;color:var(--green)">&#128206; Arquivo anexado</a>'
+          : '<span style="font-size:11px;color:var(--muted)">Sem arquivo</span>');
+
+    var btnUp = document.createElement('label');
+    btnUp.className = 'btn b-out b-xs';
+    btnUp.style.cssText='cursor:pointer;flex-shrink:0;white-space:nowrap';
+    btnUp.innerHTML = '&#128206; '+(info.arquivoUrl?'Trocar':'Anexar');
+    var inputFile = document.createElement('input');
+    inputFile.type='file';
+    inputFile.style.display='none';
+    inputFile.accept='.pdf,.jpg,.jpeg,.png';
+    inputFile.addEventListener('change', function(){
+      if(inputFile.files && inputFile.files[0]){
+        uploadArquivoChecklist(s, item, inputFile.files[0], row);
+      }
+    });
+    btnUp.appendChild(inputFile);
+
+    row.appendChild(chk);
+    row.appendChild(txt);
+    row.appendChild(btnUp);
+    div.appendChild(row);
+  });
+}
+
+function salvarChecklistServico(s){
+  var idx=_servs.findIndex(function(x){return x.id===s.id;});
+  if(idx>=0) _servs[idx]=s;
+  saveServicos();
+  enviarGAS(dadosParaMaiusculo(s),'UPSERT','Servicos');
+}
+
+function uploadArquivoChecklist(s, itemNome, file, rowEl){
+  var cl = _cls.find(function(c){ return c.id===s.cliId; });
+  if(!cl){ toast('Cliente nao encontrado','err'); return; }
+  if(!_gasUrl){ toast('Configure a URL do GAS primeiro','err'); return; }
+
+  if(file.size > 4.5*1024*1024){
+    toast('Arquivo muito grande (max 4.5MB)','err');
+    return;
+  }
+
+  var statusTxt = rowEl.querySelector('div > div + span, div > div + a');
+
+  toast('Enviando arquivo...','warn');
+
+  var reader = new FileReader();
+  reader.onload = function(){
+    var base64 = reader.result.split(',')[1];
+
+    var pastaId = cl.pastaId || '';
+    var pastaRaizFallback = '';
+    if(cl.tipo==='CTR') pastaRaizFallback = _cfgDocs['doc-pasta-raiz-ctr-id']||extrairIdDaUrl(_cfgDocs['doc-pasta-raiz-ctr']||'');
+    else if(cl.tipo==='CH') pastaRaizFallback = _cfgDocs['doc-pasta-raiz-ch-id']||extrairIdDaUrl(_cfgDocs['doc-pasta-raiz-ch']||'');
+    if(!pastaRaizFallback) pastaRaizFallback = _cfgDocs['doc-pasta-raiz-id']||extrairIdDaUrl(_cfgDocs['doc-pasta-raiz']||'');
+
+    var nomeArquivo = itemNome.substring(0,60) + ' - ' + (cl.nome||'').toUpperCase();
+    var ext = file.name.split('.').pop();
+
+    var params = {
+      acao: 'UPLOAD_ARQUIVO',
+      pastaClienteId: pastaId,
+      pastaRaiz: pastaRaizFallback,
+      nomePasta: nomePasta(cl),
+      nomeArquivo: nomeArquivo,
+      extensao: ext,
+      mimeType: file.type || 'application/octet-stream',
+      base64: base64
+    };
+
+    var qs = Object.keys(params).map(function(k){
+      return encodeURIComponent(k)+'='+encodeURIComponent(params[k]||'');
+    }).join('&');
+
+    gasFetchPost(qs).then(function(res){
+      if(res.ok){
+        if(!s.checklist[itemNome]) s.checklist[itemNome]={};
+        s.checklist[itemNome].arquivoUrl = res.data.arquivoUrl;
+        s.checklist[itemNome].ok = true;
+        s.checklist[itemNome].dataMarcado = isoHoje();
+
+        if(res.data.pastaUsadaId && !cl.pastaId){
+          var idxCl=_cls.findIndex(function(c){return c.id===cl.id;});
+          if(idxCl>=0){ _cls[idxCl].pastaId=res.data.pastaUsadaId; _cls[idxCl].pastaUrl=res.data.pastaUsadaUrl; saveClientes(); }
+        }
+
+        salvarChecklistServico(s);
+        renderChecklistServico(s);
+        toast('Arquivo enviado: '+itemNome,'ok');
+      } else {
+        toast('Erro: '+(res.error||'falha ao enviar'),'err');
+      }
+    }).catch(function(err){
+      toast('Erro de conexao ao enviar arquivo','err');
+      console.error(err);
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
 // =========== INIT ===========
 loadAll();
 loadServicos();
 loadDocs();
 autoPreencherDocsConfig();
+loadListasDocs();
 loadFila();
 loadAgenda();
 recalcularIds();
@@ -4306,6 +4673,12 @@ rotFrase(); setInterval(rotFrase,15000);
         <div style="grid-column:span 2" id="esv-historico-wrap" style="display:none">
           <label style="display:block;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">&#128203; Historico de Vistos</label>
           <div id="esv-historico" style="background:var(--bg);border-radius:var(--r2);padding:10px;font-size:12px;max-height:150px;overflow-y:auto"></div>
+        </div>
+
+        <div style="grid-column:span 2" id="esv-checklist-wrap">
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">&#128196; Checklist de Documentos</label>
+          <div id="esv-checklist-progresso" style="font-size:12px;color:var(--dim);margin-bottom:8px"></div>
+          <div id="esv-checklist" style="display:flex;flex-direction:column;gap:6px;max-height:280px;overflow-y:auto;padding-right:4px"></div>
         </div>
       </div>
     </div>
