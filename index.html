@@ -436,7 +436,8 @@ select.inp option{background:#fff}
       Copie este codigo, cole no <b>Apps Script</b> da planilha e publique como <b>App da Web</b>.
     </p>
         <textarea class="inp inp-ta" id="gas-code" readonly
-      style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5">// ========================================
+      style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5">id="gas-code" readonly
+      style="min-height:300px;font-family:monospace;font-size:12px;background:#f8fafc;line-height:1.5"&gt;// ========================================
 // GESTAO CH Premium — Google Apps Script
 // Versao com Cadastro + Documentos
 // Cole em Extensions &gt; Apps Script
@@ -618,17 +619,33 @@ function gerarDoc(params) {
   if (!docId) return jsonErr('ID do documento nao configurado');
 
   try {
-    // Usar a pasta do cliente diretamente se ja existir (vinculada no cadastro)
-    var pasta;
+    // Usar a pasta do cliente diretamente se ja existir e for valida
+    var pasta = null;
+
     if (pastaClienteId) {
-      pasta = DriveApp.getFolderById(pastaClienteId);
-    } else if (pastaRaiz) {
-      var raiz   = DriveApp.getFolderById(pastaRaiz);
-      var pastas = raiz.getFoldersByName(nomePasta);
-      pasta = pastas.hasNext() ? pastas.next() : raiz.createFolder(nomePasta);
-    } else {
-      var todas = DriveApp.getFoldersByName(nomePasta);
-      pasta = todas.hasNext() ? todas.next() : DriveApp.createFolder(nomePasta);
+      try {
+        pasta = DriveApp.getFolderById(pastaClienteId);
+        // Validar que realmente é uma pasta acessível
+        pasta.getName();
+      } catch (eIdInvalido) {
+        pasta = null; // ID invalido/antigo, vamos criar uma nova abaixo
+      }
+    }
+
+    if (!pasta) {
+      if (pastaRaiz) {
+        var raiz;
+        try {
+          raiz = DriveApp.getFolderById(pastaRaiz);
+        } catch (eRaizInvalida) {
+          return jsonErr('Pasta raiz invalida. Verifique o link da pasta raiz no Config.');
+        }
+        var pastas = raiz.getFoldersByName(nomePasta);
+        pasta = pastas.hasNext() ? pastas.next() : raiz.createFolder(nomePasta);
+      } else {
+        var todas = DriveApp.getFoldersByName(nomePasta);
+        pasta = todas.hasNext() ? todas.next() : DriveApp.createFolder(nomePasta);
+      }
     }
 
     // Copiar template e substituir variaveis
