@@ -262,6 +262,21 @@ select.inp option{background:#fff}
       oninput="salvarAnotacao()" style="min-height:90px;resize:vertical"></textarea>
   </div>
 
+  <!-- Calendario / Lembretes -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div class="sec" style="margin:0;border:0;padding:0">&#128197; Calendario</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn b-out b-xs" onclick="calMudarMes(-1)">&#8249;</button>
+        <div id="cal-titulo-mes" style="font-size:13px;font-weight:800;min-width:120px;text-align:center"></div>
+        <button class="btn b-out b-xs" onclick="calMudarMes(1)">&#8250;</button>
+        <button class="btn b-blue b-xs" onclick="abrirModalLembrete()">&#43; Lembrete</button>
+      </div>
+    </div>
+    <div id="cal-grid"></div>
+    <div id="cal-dia-detalhe" style="margin-top:12px"></div>
+  </div>
+
   <!-- Ultimos cadastros -->
   <div class="card">
     <div class="sec">Ultimos Cadastros</div>
@@ -1429,7 +1444,7 @@ function ir(pg){
   var el=document.getElementById('pg-'+pg); if(el) el.classList.add('on');
   document.querySelectorAll('.nb').forEach(function(b){ b.classList.remove('on'); });
   var nb=document.getElementById('nb-'+pg); if(nb) nb.classList.add('on');
-  if(pg==='inicio'){  renderInicio(); renderAgendaHome(); }
+  if(pg==='inicio'){  renderInicio(); renderAgendaHome(); renderCalendario(); }
   if(pg==='lista')   renderLista();
   if(pg==='config'){  renderConfig(); renderConfigDocs(); }
   if(pg==='docs'){ renderDocsGerados(); }
@@ -4704,9 +4719,266 @@ function verAuditoria(){
   alert(msg);
 }
 
+// =========== CALENDARIO / LEMBRETES ===========
+var KLEMB = 'gch_lembretes';
+var _lembretes = [];
+var _calMesAtual = new Date().getMonth();
+var _calAnoAtual = new Date().getFullYear();
+
+function loadLembretes(){
+  try{ _lembretes = JSON.parse(localStorage.getItem(KLEMB)||'[]'); }catch(e){ _lembretes=[]; }
+}
+function saveLembretes(){ localStorage.setItem(KLEMB, JSON.stringify(_lembretes)); }
+
+function calMudarMes(delta){
+  _calMesAtual += delta;
+  if(_calMesAtual<0){ _calMesAtual=11; _calAnoAtual--; }
+  if(_calMesAtual>11){ _calMesAtual=0; _calAnoAtual++; }
+  renderCalendario();
+}
+
+// Monta um mapa { 'AAAA-MM-DD': [ {tipo, icone, texto, cliId}, ... ] } com todos os eventos do mes visivel
+function montarEventosCalendario(){
+  var mapa = {};
+  function add(dataStr, evento){
+    if(!dataStr) return;
+    var d = dataStr.length>10 ? dataStr.slice(0,10) : dataStr;
+    if(!mapa[d]) mapa[d]=[];
+    mapa[d].push(evento);
+  }
+
+  // 1. Aniversarios — repetem todo ano, usar o ano/mes visivel
+  _cls.forEach(function(cl){
+    if(!cl.nascimento) return;
+    var nasc = cl.nascimento.length>10 ? cl.nascimento.slice(0,10) : cl.nascimento;
+    var partes = nasc.split('-');
+    if(partes.length!==3) return;
+    var mes = parseInt(partes[1],10)-1;
+    var dia = partes[2];
+    var dataEsteAno = _calAnoAtual+'-'+partes[1]+'-'+dia;
+    add(dataEsteAno, { tipo:'aniversario', icone:'&#127874;', texto: cl.nome.split(' ')[0]+' — Aniversario', cliId: cl.id });
+  });
+
+  // 2. Prazos de servicos (baseado nos 4 prazos do sistema de alertas, convertidos em data)
+  _servs.forEach(function(s){
+    if(s.status==='deferido' || s.status==='indeferido') return;
+
+    if(s.status==='aguardando_cli'){
+      // Prazo 2: 7 dias apos criacao para protocolar
+      var dataLimite = somarDias(s.criado, 7);
+      add(dataLimite, { tipo:'prazo', icone:'&#9888;', texto: s.cliNome+' — Cobrar doc: '+s.nomeServico, cliId: s.cliId });
+    }
+    if(s.status==='protocolado'){
+      var ref = s.ultimoVisto || s.dataProtocolo || s.criado;
+      var dataVisto = somarDias(ref, 14);
+      add(dataVisto, { tipo:'visto', icone:'&#128065;', texto: s.cliNome+' — Verificar andamento: '+s.nomeServico, cliId: s.cliId });
+
+      if(s.dataProtocolo){
+        var dataGru = somarDias(s.dataProtocolo, 30);
+        add(dataGru, { tipo:'gru', icone:'&#128179;', texto: s.cliNome+' — GRU vence: '+s.nomeServico, cliId: s.cliId });
+      }
+    }
+  });
+
+  // 3. Sem servico ainda (Prazo 1)
+  _cls.forEach(function(cl){
+    var temServ = _servs.some(function(s){ return s.cliId===cl.id; });
+    if(!temServ && cl.criado){
+      var dataLimite = somarDias(cl.criado, 7);
+      add(dataLimite, { tipo:'prazo', icone:'&#9888;', texto: cl.nome+' — Sem servico cadastrado', cliId: cl.id });
+    }
+  });
+
+  // 4. Lembretes manuais
+  _lembretes.forEach(function(l){
+    add(l.data, { tipo:'lembrete', icone:'&#128204;', texto: l.texto, cliId: l.cliId||'', lembId: l.id });
+  });
+
+  return mapa;
+}
+
+function somarDias(dataStr, dias){
+  if(!dataStr) return '';
+  var d = new Date(dataStr.length>10 ? dataStr.slice(0,10) : dataStr);
+  d.setDate(d.getDate()+dias);
+  return d.toISOString().slice(0,10);
+}
+
+var CORES_EVENTO = {
+  aniversario: { bg:'#fdf2e9', cor:'#c2750c' },
+  prazo:       { bg:'#fef2f2', cor:'#dc2626' },
+  visto:       { bg:'#eff6ff', cor:'#2563eb' },
+  gru:         { bg:'#f0fdf4', cor:'#16a34a' },
+  lembrete:    { bg:'#faf5ff', cor:'#9333ea' }
+};
+
+function renderCalendario(){
+  var titEl = document.getElementById('cal-titulo-mes');
+  var gridEl = document.getElementById('cal-grid');
+  if(!titEl || !gridEl) return;
+
+  var nomesMeses = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  titEl.textContent = nomesMeses[_calMesAtual]+' '+_calAnoAtual;
+
+  var eventos = montarEventosCalendario();
+
+  var primeiroDia = new Date(_calAnoAtual, _calMesAtual, 1);
+  var ultimoDia = new Date(_calAnoAtual, _calMesAtual+1, 0);
+  var diaSemanaInicio = primeiroDia.getDay(); // 0=domingo
+  var totalDias = ultimoDia.getDate();
+
+  var hojeStr = isoHoje();
+
+  var h = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font-size:10px;font-weight:800;color:var(--dim);text-align:center;margin-bottom:4px">';
+  ['D','S','T','Q','Q','S','S'].forEach(function(d){ h+='<div>'+d+'</div>'; });
+  h+='</div>';
+
+  h += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">';
+
+  for(var i=0;i<diaSemanaInicio;i++){ h+='<div></div>'; }
+
+  for(var dia=1; dia<=totalDias; dia++){
+    var mesStr = String(_calMesAtual+1).padStart(2,'0');
+    var diaStr = String(dia).padStart(2,'0');
+    var dataCompleta = _calAnoAtual+'-'+mesStr+'-'+diaStr;
+    var evsDoDia = eventos[dataCompleta]||[];
+    var isHoje = dataCompleta===hojeStr;
+
+    var bgCel = isHoje ? 'var(--blue)' : (evsDoDia.length ? '#fafafa' : '#fff');
+    var corTxt = isHoje ? '#fff' : 'var(--text)';
+    var borda = isHoje ? 'none' : '1px solid var(--border)';
+
+    h += '<div data-cal-dia="'+dataCompleta+'" style="cursor:pointer;min-height:46px;padding:4px 3px;border-radius:6px;background:'+bgCel+';border:'+borda+';position:relative">';
+    h += '<div style="font-size:11px;font-weight:'+(isHoje?'800':'600')+';color:'+corTxt+'">'+dia+'</div>';
+    if(evsDoDia.length){
+      h += '<div style="display:flex;flex-wrap:wrap;gap:1px;margin-top:2px">';
+      evsDoDia.slice(0,4).forEach(function(ev){
+        var c = CORES_EVENTO[ev.tipo]||CORES_EVENTO.lembrete;
+        h += '<span style="width:6px;height:6px;border-radius:50%;background:'+(isHoje?'#fff':c.cor)+';display:inline-block"></span>';
+      });
+      h += '</div>';
+    }
+    h += '</div>';
+  }
+  h += '</div>';
+
+  gridEl.innerHTML = h;
+
+  gridEl.querySelectorAll('[data-cal-dia]').forEach(function(el){
+    el.addEventListener('click', function(){
+      mostrarDetalheDia(el.getAttribute('data-cal-dia'), eventos);
+    });
+  });
+
+  // Mostrar hoje por padrao se nenhum dia foi selecionado ainda
+  if(!document.getElementById('cal-dia-detalhe').dataset.aberto){
+    mostrarDetalheDia(hojeStr, eventos);
+  }
+}
+
+function mostrarDetalheDia(dataStr, eventosMapa){
+  var det = document.getElementById('cal-dia-detalhe');
+  if(!det) return;
+  det.dataset.aberto = '1';
+
+  var evs = (eventosMapa||montarEventosCalendario())[dataStr]||[];
+  var partes = dataStr.split('-');
+  var dataFmt = partes[2]+'/'+partes[1]+'/'+partes[0];
+
+  if(!evs.length){
+    det.innerHTML = '<div style="padding:10px;text-align:center;color:var(--muted);font-size:12px;border-top:1px solid var(--border)">'
+      +'<b>'+dataFmt+'</b> — Nenhum evento'
+      +'</div>';
+    return;
+  }
+
+  var h = '<div style="border-top:1px solid var(--border);padding-top:10px">';
+  h += '<div style="font-size:12px;font-weight:800;color:var(--dim);margin-bottom:8px">'+dataFmt+'</div>';
+  evs.forEach(function(ev){
+    var c = CORES_EVENTO[ev.tipo]||CORES_EVENTO.lembrete;
+    h += '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:'+c.bg+';border-radius:var(--r2);margin-bottom:6px;cursor:'+(ev.cliId?'pointer':'default')+'" '+(ev.cliId?'data-ir-cliente="'+ev.cliId+'"':'')+'>'
+      +'<span>'+ev.icone+'</span>'
+      +'<span style="flex:1;font-size:12.5px;color:'+c.cor+';font-weight:600">'+ev.texto+'</span>'
+      +(ev.lembId?'<span data-del-lemb="'+ev.lembId+'" style="cursor:pointer;color:var(--muted);font-weight:900;padding:0 4px">&times;</span>':'')
+      +'</div>';
+  });
+  h += '</div>';
+  det.innerHTML = h;
+
+  det.querySelectorAll('[data-ir-cliente]').forEach(function(el){
+    el.addEventListener('click', function(){
+      verCliente(el.getAttribute('data-ir-cliente'));
+    });
+  });
+  det.querySelectorAll('[data-del-lemb]').forEach(function(el){
+    el.addEventListener('click', function(e){
+      e.stopPropagation();
+      var lid = el.getAttribute('data-del-lemb');
+      if(!confirm('Excluir este lembrete?')) return;
+      _lembretes = _lembretes.filter(function(l){ return l.id!==lid; });
+      saveLembretes();
+      renderCalendario();
+      mostrarDetalheDia(dataStr);
+    });
+  });
+}
+
+function abrirModalLembrete(){
+  var m = document.getElementById('modal-lembrete'); if(!m) return;
+  document.getElementById('lemb-id').value='';
+  document.getElementById('lemb-data').value=isoHoje();
+  document.getElementById('lemb-cli-busca').value='';
+  document.getElementById('lemb-cli-id').value='';
+  document.getElementById('lemb-texto').value='';
+  m.style.display='flex';
+}
+function fecharModalLembrete(){
+  var m = document.getElementById('modal-lembrete'); if(m) m.style.display='none';
+}
+
+function buscarCliLembrete(){
+  var q=(document.getElementById('lemb-cli-busca')||{value:''}).value.toLowerCase().trim();
+  var res=document.getElementById('lemb-cli-resultados');
+  if(!res) return;
+  if(q.length<2){ res.style.display='none'; return; }
+  var lista=_cls.filter(function(cl){
+    return (cl.nome+cl.cpf).toLowerCase().indexOf(q)>=0;
+  }).slice(0,6);
+  if(!lista.length){ res.style.display='none'; return; }
+  res.style.display='block'; res.innerHTML='';
+  lista.forEach(function(cl){
+    var item=document.createElement('div');
+    item.style.cssText='padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)';
+    item.textContent = cl.nome;
+    item.addEventListener('click',function(){
+      document.getElementById('lemb-cli-busca').value=cl.nome;
+      document.getElementById('lemb-cli-id').value=cl.id;
+      res.style.display='none';
+    });
+    res.appendChild(item);
+  });
+}
+
+function salvarLembrete(){
+  var data = (document.getElementById('lemb-data')||{value:''}).value;
+  var texto = (document.getElementById('lemb-texto')||{value:''}).value.trim();
+  var cliId = (document.getElementById('lemb-cli-id')||{value:''}).value;
+  if(!data){ toast('Escolha uma data','err'); return; }
+  if(!texto){ toast('Escreva o lembrete','err'); return; }
+
+  _lembretes.push({ id: uid(), data: data, texto: texto, cliId: cliId });
+  saveLembretes();
+  fecharModalLembrete();
+  toast('Lembrete salvo!','ok');
+  renderCalendario();
+}
+
 // =========== INIT ===========
+
+
 loadExcluidos();
 loadAuditoria();
+loadLembretes();
 loadAll();
 loadServicos();
 loadDocs();
@@ -4717,6 +4989,7 @@ loadAgenda();
 recalcularIds();
 atualizarStats();
 carregarAnotacao();
+renderCalendario();
 // Importar da planilha após 2 segundos (deixa o sistema carregar primeiro)
 setTimeout(importarDaPlanilha, 2000);
 setTimeout(carregarConfigDaPlanilha, 1500);
@@ -4727,6 +5000,37 @@ setTimeout(renderAlertas,100);
 tick(); setInterval(tick,1000);
 rotFrase(); setInterval(rotFrase,15000);
 </script>
+
+<!-- MODAL LEMBRETE -->
+<div id="modal-lembrete" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:var(--r);width:calc(100% - 24px);max-width:420px;box-shadow:0 20px 50px rgba(0,0,0,.2)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)">
+      <div style="font-size:15px;font-weight:800">&#128204; Novo Lembrete</div>
+      <button onclick="fecharModalLembrete()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px;line-height:1">&#10005;</button>
+    </div>
+    <div style="padding:18px">
+      <input type="hidden" id="lemb-id">
+      <div class="field" style="margin-bottom:12px">
+        <label style="display:block;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Data</label>
+        <input class="inp" id="lemb-data" type="date">
+      </div>
+      <div class="field" style="margin-bottom:12px">
+        <label style="display:block;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Cliente (opcional)</label>
+        <input class="inp" id="lemb-cli-busca" placeholder="Buscar cliente..." oninput="buscarCliLembrete()" autocomplete="off">
+        <input type="hidden" id="lemb-cli-id">
+        <div id="lemb-cli-resultados" style="display:none;position:relative;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:0 8px 20px rgba(0,0,0,.1);z-index:50;max-height:200px;overflow-y:auto;margin-top:4px"></div>
+      </div>
+      <div class="field" style="margin-bottom:16px">
+        <label style="display:block;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Lembrete</label>
+        <textarea class="inp inp-ta" id="lemb-texto" placeholder="Ex: Ligar para confirmar documentacao..." style="min-height:70px"></textarea>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px">
+        <button class="btn b-out" onclick="fecharModalLembrete()">Cancelar</button>
+        <button class="btn b-green" onclick="salvarLembrete()">&#128190; Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL EDITAR SERVIÇO -->
 <div id="modal-editar-sv" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);align-items:center;justify-content:center">
