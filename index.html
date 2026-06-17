@@ -1819,7 +1819,7 @@ function verCliente(id){
     var st = getStatus(s.status);
       var diasV=diasDesde(s.ultimoVisto||s.inicio);
   var bCor=diasV>=14?'border-left:4px solid var(--red)':diasV>=12?'border-left:4px solid #f59e0b':'border-left:4px solid transparent';
-  h += '<div style="padding:10px 0 10px 10px;border-bottom:1px solid var(--border);'+bCor+'">';
+  h += '<div style="padding:10px 0 10px 10px;border-bottom:1px solid var(--border);'+bCor+'">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
       +'<div style="flex:1">'
       +'<div style="font-size:11px;color:var(--blue);font-weight:800">'+(s.protocolo||'')+'</div>'
