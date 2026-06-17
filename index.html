@@ -1556,7 +1556,7 @@ function renderInicio(){
   if(cardAl) cardAl.style.display = urgentes.length ? 'block' : 'none';
   if(divAl && urgentes.length){
     divAl.innerHTML='';
-    urgentes.slice(0,4).forEach(function(al){
+    urgentes.slice(0,5).forEach(function(al){
       var el3=document.createElement('div');
       el3.style.cssText='padding:10px 12px;background:var(--red2);border:1px solid #f5c5c0;border-radius:var(--r2);margin-bottom:7px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px';
       el3.innerHTML='<div>'
@@ -1567,24 +1567,33 @@ function renderInicio(){
       el3.addEventListener('click',function(){ if(al.cliId) verCliente(al.cliId); });
       divAl.appendChild(el3);
     });
-    if(urgentes.length>4){
+    if(urgentes.length>5){
       var m2=document.createElement('div');
       m2.style.cssText='font-size:12px;color:var(--red);text-align:center;padding:6px 0;font-weight:700;cursor:pointer';
-      m2.textContent='+ '+(urgentes.length-4)+' urgente(s) — clique em Ver todos';
+      m2.textContent='+ '+(urgentes.length-5)+' urgente(s) — clique em Ver todos';
       m2.addEventListener('click',function(){ ir('alertas'); });
       divAl.appendChild(m2);
     }
   }
 
-  // Últimos cadastros
+  // Últimos cadastros — somente dos ultimos 3 dias, max 5 visiveis (com opcao de ver mais)
   var div=document.getElementById('lista-ultimos'); if(!div) return;
-  var ult=_cls.slice(0,6);
-  if(!ult.length){
-    div.innerHTML='<div class="vazio"><div class="vazio-ic">&#128101;</div><div class="vazio-tx">Nenhum cliente ainda</div><div class="vazio-sb">Clique em Cadastro para comecar</div></div>';
+  var recentes = _cls.filter(function(cl){ return diasDesde(cl.criado) <= 3; });
+  recentes.sort(function(a,b){ return diasDesde(a.criado) - diasDesde(b.criado); });
+
+  if(!recentes.length){
+    div.innerHTML='<div class="vazio"><div class="vazio-ic">&#128101;</div><div class="vazio-tx">Nenhum cadastro nos ultimos 3 dias</div><div class="vazio-sb">Vá em Clientes para ver todos</div></div>';
     return;
   }
   div.innerHTML='';
-  ult.forEach(function(cl){ div.appendChild(rowCli(cl)); });
+  recentes.slice(0,5).forEach(function(cl){ div.appendChild(rowCli(cl)); });
+  if(recentes.length>5){
+    var mais=document.createElement('div');
+    mais.style.cssText='font-size:12px;color:var(--blue);text-align:center;padding:8px 0;font-weight:700;cursor:pointer';
+    mais.textContent='+ '+(recentes.length-5)+' cadastro(s) recente(s) — ver todos';
+    mais.addEventListener('click',function(){ ir('lista'); });
+    div.appendChild(mais);
+  }
 }
 
 // =========== RENDER LISTA ===========
