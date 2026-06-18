@@ -777,7 +777,8 @@ function montarLinha(params, sheetName) {
       params.telefone, params.email, params.endereco, params.cidade, params.cep,
       params.prop_nome, params.prop_cpf, params.prop_rg, params.prop_orgao,
       params.endereco2, params.cidade2, params.cep2,
-      params.gsenha, params.obs, params.criado, params.atualizado||''
+      params.gsenha, params.obs, params.criado, params.atualizado||'',
+      params.pasta_id||'', params.pasta_url||''
     ];
   }
 }
@@ -1358,6 +1359,7 @@ function salvar(){
     prop_nome:g('f-pnome'), prop_cpf:g('f-pcpf'), prop_rg:g('f-prg'), prop_orgao:g('f-porgao'),
     endereco2:g('f-end2'), cidade2:g('f-cidade2'), cep2:g('f-cep2'),
     obs:g('f-obs'),
+    pasta_id: cEx.pastaId||'', pasta_url: cEx.pastaUrl||'',
     criado: isNovo ? hoje() : (cEx.criado||hoje()),
     atualizado: hoje()
   };
@@ -1896,8 +1898,17 @@ function verCliente(id){
         var inp=document.getElementById('pasta-url-input-'+cid);
         var url=inp?inp.value.trim():'';
         if(!url){ toast('Cole o link da pasta','err'); return; }
+        var idExtraido = extrairIdDaUrl(url);
+        if(!idExtraido){ toast('Link invalido. Cole o link completo da pasta do Google Drive','err'); return; }
         var idx=_cls.findIndex(function(c){ return c.id===cid; });
-        if(idx>=0){ _cls[idx].pastaUrl=url; saveClientes(); verCliente(cid); toast('Pasta salva!','ok'); }
+        if(idx>=0){
+          _cls[idx].pastaUrl=url;
+          _cls[idx].pastaId=idExtraido;
+          saveClientes();
+          enviarGAS({id:cid, pasta_id:idExtraido, pasta_url:url},'UPDATE','Clientes');
+          verCliente(cid);
+          toast('Pasta vinculada! Documentos e uploads vao para esse local agora','ok');
+        }
       });
     });
     det.querySelectorAll('[data-criar-pasta]').forEach(function(b){
@@ -4185,6 +4196,8 @@ function importarDaPlanilha(){
           cep2:        String(r.cep2||r.CEP2||'').trim(),
           gsenha:      String(r.gsenha||r.GSENHA||r.gov_senha||'').trim(),
           obs:         String(r.obs||r.OBS||'').trim(),
+          pastaId:     String(r.pasta_id||r.PASTA_ID||'').trim(),
+          pastaUrl:    String(r.pasta_url||r.PASTA_URL||'').trim(),
           criado:      formatarDataParaPlanilha(String(r.criado||r.CRIADO||hoje()).trim()),
           atualizado:  String(r.atualizado||r.ATUALIZADO||hoje()).trim()
         };
