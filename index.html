@@ -1152,6 +1152,7 @@ var _filtro = '';
 var _editId = null;
 var _delId  = null;
 var _gasUrl = '';
+var _gasUrlPadrao = 'https://script.google.com/macros/s/AKfycbzz7-tEregdSQct5oWiTYjjX5L2qdq2xuTHuE34BGRmrBW6TulpZrA83-L6zvVErFs/exec';
 var _logado = true;
 var _users  = [{u:'clarindo',s:'helly1218'}];
 
@@ -1206,7 +1207,7 @@ function loadAll(){
   }
 
   // Mesma coisa para serviços
-_gasUrl = localStorage.getItem('gch_gas')||'';
+_gasUrl = localStorage.getItem('gch_gas')||_gasUrlPadrao;
   try{
     var a = JSON.parse(localStorage.getItem('gch_acesso')||'null');
     if(a && a.u && a.s) _users = [{u:a.u, s:a.s}];
