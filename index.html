@@ -2526,9 +2526,9 @@ function calcularAlertas(){
     }
   });
 
-  // PRAZO 4: protocolado — GRU vence em 30 dias
+  // PRAZO 4: protocolado — GRU vence em 30 dias (ignorar se ja paga)
   _servs.forEach(function(s){
-    if(s.status==='protocolado' && s.dataProtocolo){
+    if(s.status==='protocolado' && s.dataProtocolo && !s.gruPaga){
       var dias = diasDesde(s.dataProtocolo);
       var restam = 30 - dias;
       if(dias >= 20){
@@ -4819,7 +4819,7 @@ function montarEventosCalendario(){
       var dataVisto = somarDias(ref, 14);
       add(dataVisto, { tipo:'visto', icone:'&#128065;', texto: s.cliNome+' — Verificar andamento: '+s.nomeServico, cliId: s.cliId });
 
-      if(s.dataProtocolo){
+      if(s.dataProtocolo && !s.gruPaga){
         var dataGru = somarDias(s.dataProtocolo, 30);
         add(dataGru, { tipo:'gru', icone:'&#128179;', texto: s.cliNome+' — GRU vence: '+s.nomeServico, cliId: s.cliId });
       }
