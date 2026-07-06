@@ -614,6 +614,22 @@ if (acao === 'LER_CONFIG') {
   // INSERT ou UPDATE
   var linha = montarLinha(params, sheetName);
 
+  if (acao === 'UPDATE_PASTA') {
+    // Atualiza apenas PASTA_ID e PASTA_URL sem sobrescrever o resto da linha
+    var dados = sheet.getDataRange().getValues();
+    var cab = dados[0].map(function(c){ return String(c).toLowerCase().replace(/ /g,'_'); });
+    var colPastaId  = cab.indexOf('pasta_id');
+    var colPastaUrl = cab.indexOf('pasta_url');
+    for (var i = 1; i < dados.length; i++) {
+      if (String(dados[i][2]) === id) {
+        if (colPastaId  >= 0) sheet.getRange(i+1, colPastaId+1).setValue(params.pasta_id||'');
+        if (colPastaUrl >= 0) sheet.getRange(i+1, colPastaUrl+1).setValue(params.pasta_url||'');
+        return jsonOk({updated_pasta: id});
+      }
+    }
+    return jsonOk({nao_encontrado: id});
+  }
+
   if (acao === 'UPDATE') {
     var dados = sheet.getDataRange().getValues();
     for (var i = 1; i &lt; dados.length; i++) {
@@ -1908,7 +1924,8 @@ function verCliente(id){
           _cls[idx].pastaUrl=url;
           _cls[idx].pastaId=idExtraido;
           saveClientes();
-          enviarGAS({id:cid, pasta_id:idExtraido, pasta_url:url},'UPDATE','Clientes');
+          // UPDATE_PASTA: atualiza só as colunas de pasta, sem risco de sobrescrever outros campos
+          enviarGAS({id:cid, pasta_id:idExtraido, pasta_url:url},'UPDATE_PASTA','Clientes');
           verCliente(cid);
           toast('Pasta vinculada! Documentos e uploads vao para esse local agora','ok');
         }
@@ -2082,6 +2099,8 @@ function sincronizarTudo(){
             endereco2:String(r.endereco2||'').trim(), cidade2:String(r.cidade2||'').trim(),
             cep2:String(r.cep2||'').trim(), gsenha:String(r.gsenha||'').trim(),
             obs:String(r.obs||'').trim(),
+            pastaId:  String(r.pasta_id||r.PASTA_ID||'').trim(),
+            pastaUrl: String(r.pasta_url||r.PASTA_URL||'').trim(),
             criado:formatarDataParaPlanilha(String(r.criado||hoje()).trim()),
             atualizado:hoje()
           });
