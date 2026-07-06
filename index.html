@@ -767,7 +767,7 @@ function montarLinha(params, sheetName) {
       params.protocolo, params.id, params.cliId, params.cliNome, params.cliCodigo,
       params.tipo, params.tipocliente||'', params.nomeServico, params.detalhe,
       params.inicio, params.prazo, params.status, params.obs, params.dataProtocolo,
-      params.ultimoVisto, params.gruComunicada, params.criado, params.atualizado||''
+      params.ultimoVisto, params.gruComunicada, params.grupaga||'', params.criado, params.atualizado||''
     ];
   } else {
     return [
@@ -1841,6 +1841,8 @@ function verCliente(id){
       +'<button class="btn b-blue b-xs" data-visto-sv="'+s.id+'">&#128065; Visto</button>'
       +'<button class="btn b-gold b-xs" data-edit-sv="'+s.id+'">&#9998; Editar</button>'
       +'<button class="btn b-blue b-xs" data-alt-sv="'+s.id+'">&#8635; Status</button>'
+      +(s.gruComunicada && !s.gruPaga ? '<button class="btn b-green b-xs" data-gru-paga-sv="'+s.id+'">&#128179; GRU Paga</button>' : '')
+      +(s.gruPaga ? '<span style="font-size:11px;color:var(--green);font-weight:700">&#10003; GRU paga '+fmtData(s.gruPaga)+'</span>' : '')
       +'<button class="btn b-green b-xs" data-fin-sv="'+s.id+'">&#10003; Finalizar</button>'
       +'</div>'
       +'</div>';
@@ -1943,6 +1945,21 @@ function verCliente(id){
         abrirEditarSv(b.getAttribute('data-alt-sv'));
       });
     });
+    det.querySelectorAll('[data-gru-paga-sv]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var svId=b.getAttribute('data-gru-paga-sv');
+        var s=_servs.find(function(x){ return x.id===svId; }); if(!s) return;
+        if(!confirm('Confirmar GRU paga hoje para:\n'+s.nomeServico+'?')) return;
+        s.gruPaga = isoHoje();
+        s.atualizado = isoHoje();
+        saveServicos();
+        enviarGAS(dadosParaMaiusculo(s),'UPDATE','Servicos');
+        verCliente(s.cliId);
+        toast('GRU marcada como paga! &#128179;','ok');
+        registrarAuditoria('GRU_PAGA', s.protocolo+' - '+s.cliNome);
+      });
+    });
+
     det.querySelectorAll('[data-fin-sv]').forEach(function(b){
       b.addEventListener('click',function(){
         finalizarServicoDet(b.getAttribute('data-fin-sv'), id);
@@ -2016,7 +2033,9 @@ function testarConexao(){
     })
     .catch(function(e){
       console.log('Erro de conexao GAS:', e);
-      toast('&#10007; Falha! Provavelmente a URL esta errada ou desatualizada. Veja o passo a passo abaixo.','err');
+      var msg = e && e.message ? e.message : 'erro desconhecido';
+      toast('&#10007; Falha: '+msg,'err');
+      alert('Detalhes do erro:\\n\\n'+msg+'\\n\\nURL testada:\\n'+_gasUrl+'\\n\\nSe disser "Timeout", a conexao demorou mais de 20s (rede lenta). Se disser "Falha ao carregar script", o navegador bloqueou ou a URL nao existe mais.');
     });
 }
 
@@ -3533,6 +3552,7 @@ function abrirNovoServicoCliente(cliId){
   var dp=document.getElementById('esv-data-proto'); if(dp) dp.value='';
   var uv=document.getElementById('esv-ultimo-visto'); if(uv) uv.value='';
   var gr=document.getElementById('esv-gru'); if(gr) gr.value='';
+  var grp=document.getElementById('esv-gru-paga'); if(grp) grp.value='';
   var ob=document.getElementById('esv-obs'); if(ob) ob.value='';
 
   onEsvTipo();
@@ -3563,6 +3583,7 @@ function abrirEditarSv(svId){
   var dp=document.getElementById('esv-data-proto'); if(dp) dp.value=s.dataProtocolo||'';
   var uv=document.getElementById('esv-ultimo-visto'); if(uv) uv.value=s.ultimoVisto||'';
   var gr=document.getElementById('esv-gru'); if(gr) gr.value=s.gruComunicada||'';
+  var grp=document.getElementById('esv-gru-paga'); if(grp) grp.value=s.gruPaga||'';
   var ob=document.getElementById('esv-obs'); if(ob) ob.value=s.obs||'';
 
   renderChecklistServico(s);
@@ -3647,6 +3668,7 @@ function salvarEdicaoSv(){
   s.dataProtocolo= (document.getElementById('esv-data-proto')||{value:''}).value || s.dataProtocolo || '';
   s.ultimoVisto  = (document.getElementById('esv-ultimo-visto')||{value:''}).value || s.ultimoVisto || isoHoje();
   s.gruComunicada= (document.getElementById('esv-gru')||{value:''}).value;
+  s.gruPaga      = (document.getElementById('esv-gru-paga')||{value:''}).value;
   s.obs          = (document.getElementById('esv-obs')||{value:''}).value;
   s.atualizado   = isoHoje();
 
@@ -4276,6 +4298,7 @@ function importarDaPlanilha(){
           dataProtocolo:String(r.data_protocolo||r.dataprotocolo||'').trim(),
           ultimoVisto:  String(r.ultimo_visto||r.ultimovisto||'').trim(),
           gruComunicada:String(r.gru_comunicada||r.grucomunicada||'').trim(),
+          gruPaga:      String(r.grupaga||r.gru_paga||'').trim(),
           criado:       String(r.criado||'').trim(),
           atualizado:   String(r.atualizado||'').trim()
         });
@@ -4456,8 +4479,8 @@ function gasFetch(qs){
     var cbName = '_gasCb' + (_gasCbCount++);
     var timeoutId = setTimeout(function(){
       cleanup();
-      reject(new Error('Timeout - GAS nao respondeu em 20s'));
-    }, 20000);
+      reject(new Error('Timeout - GAS nao respondeu em 35s'));
+    }, 35000);
 
     function cleanup(){
       clearTimeout(timeoutId);
@@ -5117,6 +5140,13 @@ rotFrase(); setInterval(rotFrase,15000);
         <div>
           <label style="display:block;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">GRU Comunicada em</label>
           <input class="inp" id="esv-gru" type="date">
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">GRU Paga em</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input class="inp" id="esv-gru-paga" type="date" style="flex:1">
+            <button type="button" class="btn b-green b-xs" onclick="document.getElementById('esv-gru-paga').value=isoHoje()" style="flex-shrink:0;white-space:nowrap">&#10003; Hoje</button>
+          </div>
         </div>
         <div style="grid-column:span 2">
           <label style="display:block;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Observacoes</label>
