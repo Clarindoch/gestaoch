@@ -301,6 +301,9 @@ select.inp option{background:#fff}
           <option value="CH">&#127970; CH - Cursos e Consultorias</option>
           <option value="CTR">&#127942; CTR - Clube de Tiro</option>
         </select></div>
+      <div class="field"><label>Codigo Personalizado <span style="font-weight:400;color:var(--dim)">(opcional — deixe vazio para gerar automatico)</span></label>
+        <input class="inp" id="f-codigo-custom" placeholder="Ex: CTR-005 ou CH-012" oninput="this.value=this.value.toUpperCase()">
+      </div>
 
       <div class="field s2"><label>Nome Completo *</label>
         <input class="inp" id="f-nome" placeholder="Ex: JOAO SILVA SANTOS" oninput="U(this)"></div>
@@ -413,6 +416,7 @@ select.inp option{background:#fff}
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
     <button class="btn b-out b-sm" onclick="ir('lista')">&#8592; Voltar</button>
     <button class="btn b-blue b-sm" onclick="editarAtual()">&#9998; Editar</button>
+    <button class="btn b-gold b-sm" onclick="abrirEditarId(_editId)">&#128273; Editar Codigo</button>
     <button class="btn b-green b-sm" onclick="abrirNovoServicoCliente(_editId)">&#128193; + Servico</button>
     <button class="btn b-gold b-sm" onclick="irDocumentosCliente()">&#128196; Documentos</button>
     <button class="btn b-out b-sm" onclick="gerarFicha()">&#128203; Gerar Ficha</button>
@@ -1274,9 +1278,7 @@ function limparForm(){
    'f-civil','f-prof','f-pai','f-mae','f-titulo','f-tel','f-email',
    'f-end','f-cidade','f-cep','f-pnome','f-pcpf','f-prg',   'f-end2','f-cidade2','f-cep2','f-obs'].forEach(function(id){ set(id,''); });
   set('f-tipo','CH');
-
-
-  _editId = null;
+  set('f-codigo-custom','');
   set('cad-tit','+ Novo Cliente');
   var bs = document.getElementById('btn-salvar'); if(bs) bs.textContent = 'Salvar Cliente';
 }
@@ -1362,8 +1364,18 @@ function salvar(){
     }
   }
   var tipo   = g('f-tipo') || 'CH';
+  var codigoCustom = (document.getElementById('f-codigo-custom')||{value:''}).value.trim().toUpperCase();
   var seq    = isNovo ? proximoSeq(tipo) : (cEx.seq || proximoSeq(tipo));
-  var cliId  = isNovo ? gerarClienteId(tipo,seq) : (cEx.clienteId || gerarClienteId(tipo,seq));
+  var cliId;
+  if(isNovo && codigoCustom){
+    // Codigo personalizado: usar direto, extrair seq se possivel
+    cliId = codigoCustom;
+    var partes = codigoCustom.split('-');
+    var numFinal = parseInt(partes[partes.length-1], 10);
+    if(!isNaN(numFinal)) seq = numFinal;
+  } else {
+    cliId = isNovo ? gerarClienteId(tipo,seq) : (cEx.clienteId || gerarClienteId(tipo,seq));
+  }
 
   var d = {
     id:id, seq:seq, clienteId:cliId, tipo:tipo,
