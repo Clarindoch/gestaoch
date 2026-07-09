@@ -660,27 +660,29 @@ function gerarDoc(params) {
   if (!docId) return jsonErr('ID do documento nao configurado');
 
   try {
-    // Usar a pasta do cliente diretamente se ja existir e for valida
     var pasta = null;
 
     if (pastaClienteId) {
+      // Tentar usar a pasta do cliente vinculada
       try {
         pasta = DriveApp.getFolderById(pastaClienteId);
-        // Validar que realmente é uma pasta acessível
-        pasta.getName();
+        pasta.getName(); // valida acesso
       } catch (eIdInvalido) {
-        pasta = null; // ID invalido/antigo, vamos criar uma nova abaixo
+        // Pasta nao encontrada — NAO cria nova, avisa o usuario
+        return jsonErr('PASTA_NAO_ENCONTRADA: A pasta vinculada do cliente nao foi encontrada. Verifique a conexao ou vincule a pasta novamente na pagina do cliente.');
       }
     }
 
     if (!pasta) {
+      // Sem pasta vinculada: criar na raiz CTR ou CH
       if (pastaRaiz) {
         var raiz;
         try {
           raiz = DriveApp.getFolderById(pastaRaiz);
         } catch (eRaizInvalida) {
-          return jsonErr('Pasta raiz invalida. Verifique o link da pasta raiz no Config.');
+          return jsonErr('Pasta raiz invalida. Verifique o link da pasta raiz em Config.');
         }
+        // Buscar pasta existente pelo nome antes de criar
         var pastas = raiz.getFoldersByName(nomePasta);
         pasta = pastas.hasNext() ? pastas.next() : raiz.createFolder(nomePasta);
       } else {
@@ -1918,11 +1920,50 @@ function verCliente(id){
     +'<button class="btn b-green b-xs" data-criar-pasta="'+cl.id+'" style="flex-shrink:0">Criar Pasta</button>'
     +'</div>'
     +'</div>';
+
+  // ---- DOCUMENTOS GERADOS DESTE CLIENTE ----
+  var docsCliente = _docsGerados.filter(function(d){ return d.cliId === cl.id; });
+  h += '<div class="card" style="margin-top:12px">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    +'<div class="sec" style="margin:0;border:0;padding:0">&#128196; Documentos Gerados</div>'
+    +'<button class="btn b-blue b-xs" onclick="irDocumentosCliente()">&#43; Gerar</button>'
+    +'</div>';
+  if(!docsCliente.length){
+    h += '<div style="font-size:12px;color:var(--muted);padding:6px 0">Nenhum documento gerado ainda para este cliente.</div>';
+  } else {
+    docsCliente.forEach(function(d){
+      h += '<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px">'
+        +'<div style="min-width:0">'
+        +'<div style="font-size:13px;font-weight:700">'+d.nomeDoc+'</div>'
+        +'<div style="font-size:11px;color:var(--dim);margin-top:1px">'+d.geradoEm+'</div>'
+        +'</div>'
+        +'<div style="display:flex;gap:5px;flex-shrink:0">'
+        +(d.docUrl?'<a href="'+d.docUrl+'" target="_blank" class="btn b-out b-xs">&#128196; Doc</a>':'')
+        +(d.pdfUrl?'<a href="'+d.pdfUrl+'" target="_blank" class="btn b-blue b-xs">PDF</a>':'')
+        +'<button class="btn b-out b-xs" data-rm-doc-cli="'+d.id+'" style="color:var(--red);border-color:#f5c5c0">&#128465;</button>'
+        +'</div>'
+        +'</div>';
+    });
+  }
+  h += '</div>';
+
   var det=document.getElementById('det-conteudo');
   if(det){
     det.innerHTML=h;
     // Eventos nos botões de serviço dentro do detalhe
     // Handlers pasta
+    // Handler excluir doc da lista no detalhe do cliente
+    det.querySelectorAll('[data-rm-doc-cli]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var docId=b.getAttribute('data-rm-doc-cli');
+        if(!confirm('Remover este documento da lista?')) return;
+        _docsGerados=_docsGerados.filter(function(d){ return d.id!==docId; });
+        saveDocs();
+        verCliente(id);
+        toast('Documento removido da lista','ok');
+      });
+    });
+
     det.querySelectorAll('[data-salvar-pasta]').forEach(function(b){
       b.addEventListener('click',function(){
         var cid=b.getAttribute('data-salvar-pasta');
@@ -2678,6 +2719,7 @@ function loadDocs(){
   try{ _docsGerados = JSON.parse(localStorage.getItem(KD)||'[]'); }catch(e){ _docsGerados=[]; }
   try{ _cfgDocs = JSON.parse(localStorage.getItem(CFG_DOCS_KEY)||'{}'); }catch(e){ _cfgDocs={}; }
 }
+function saveDocs(){ localStorage.setItem(KD, JSON.stringify(_docsGerados)); }
 
 function salvarDocs(){
   var ids = ['doc-seg-acervo','doc-guarda-acervo','doc-cinco-anos','doc-residencia','doc-inexistencia','doc-pasta-raiz','doc-pasta-raiz-ctr','doc-pasta-raiz-ch'];
@@ -2925,6 +2967,7 @@ function gerarDocumentos(modo){
               gerado:hoje(),
               geradoEm: hoje()+' '+horaFmt
             });
+            saveDocs();
             // Se o cliente ainda nao tinha pasta vinculada, salvar agora
             if(res.data && res.data.pastaUsadaId && !cl.pastaId){
               var idxCl = _cls.findIndex(function(c){ return c.id===cliId; });
@@ -2934,6 +2977,7 @@ function gerarDocumentos(modo){
                 cl.pastaId  = res.data.pastaUsadaId;
                 cl.pastaUrl = res.data.pastaUsadaUrl;
                 saveClientes();
+                enviarGAS({id:cliId, pasta_id:res.data.pastaUsadaId, pasta_url:res.data.pastaUsadaUrl||''},'UPDATE_PASTA','Clientes');
               }
             }
             if((modo==='docs'||modo==='ambos') && res.data&&res.data.docUrl)
@@ -2942,9 +2986,24 @@ function gerarDocumentos(modo){
               window.open(res.data.pdfUrl,'_blank');
           } else {
             erros++;
-            var msg2 = (NOMES_DOCS[tipo]||tipo)+': '+(res.error||'sem detalhes do GAS');
-            _ultimosErros.push(msg2);
-            console.error('GAS retornou erro para '+tipo+':', res.error||'sem detalhes');
+            var erroMsg = res.error || 'sem detalhes';
+            // Tratar erro especifico de pasta nao encontrada
+            if(erroMsg.indexOf('PASTA_NAO_ENCONTRADA') >= 0){
+              alert('⚠️ PASTA DO CLIENTE NÃO ENCONTRADA\n\n'
+                +'A pasta vinculada de "'+cl.nome+'" não está acessível.\n\n'
+                +'Possíveis causas:\n'
+                +'• Sem conexão com o Google Drive\n'
+                +'• A pasta foi movida ou deletada\n\n'
+                +'O que fazer:\n'
+                +'1. Verifique sua conexão com a internet\n'
+                +'2. Vá na página do cliente\n'
+                +'3. Cole o novo link da pasta em "Salvar URL"\n\n'
+                +'Nenhum documento foi criado para evitar duplicidade.');
+            } else {
+              var msg2 = (NOMES_DOCS[tipo]||tipo)+': '+erroMsg;
+              _ultimosErros.push(msg2);
+              console.error('GAS retornou erro para '+tipo+':', erroMsg);
+            }
           }
           if(done===selecionados.length){
             localStorage.setItem(KD, JSON.stringify(_docsGerados));
